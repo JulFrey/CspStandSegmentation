@@ -1,0 +1,8 @@
+exportPattern("^[[:alpha:]]+")
+importFrom(Rcpp, evalCpp)
+importFrom(magrittr, "%>%")
+import(lidR)
+import(data.table)
+importFrom(foreach, "%dopar%")
+export(csp_cost_segmentation)
+useDynLib(CspStandSegmentation, .registration = TRUE)
