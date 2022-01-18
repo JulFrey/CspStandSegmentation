@@ -8,29 +8,29 @@
 %%  ~~ A concise (1-5 lines) description of what the function does. ~~
 }
 \usage{
-csp_cost_segmentation(las, inv, Voxel_size = 0.3, V_w = 0,L_w = 0,S_w = 0, DBH_w = 0)
+csp_cost_segmentation(las, map, Voxel_size = 0.3, V_w = 0,L_w = 0,S_w = 0, N_cores = 1)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{x}{
-%%     ~~Describe \code{x} here~~
-}
+  \item{las}{A lidR LAS S4 object.}
+  \item{map}{A TreeLS map object, or a data.frame including the columns X,Y,Z,TreeID, with X and Y depicting the location of the trees.}
+  \item{Voxel_size}{The voxel size (3D ressolution) for the routing graph to determine nearest map location for every point in the pointcloud.}
+  \item{V_w}{verticality weight. Since trunks are vertical structures routing through voxels with high verticality can be rated 'cheaper'. should be a number between 0 and 1 with 0 meaning no benefit vor more vertical structures.}
+  \item{L_w}{Linearity weight. Simmilar to V_w but for linearity, higher values indicate a malus for linear shapes  (usually branches).}
+  \item{S_w}{Linearity weight. Simmilar to V_w but for sphericity, higher values indicate a malus for spherical shapes (usually small branches and leaves).}
+  \item{N_Cores}{number of CPU cores used for parrallel routing using the foreach package.}
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-%%  ~Describe the value returned
-%%  If it is a LIST, use
-%%  \item{comp1 }{Description of 'comp1'}
-%%  \item{comp2 }{Description of 'comp2'}
-%% ...
+Returns a copy of the las point cloud with an additional field for the TreeID.
 }
 \references{
 %% ~put references to the literature/web site here ~
 }
 \author{
-%%  ~~who you are~~
+Dr. Julian Frey
 }
 \note{
 %%  ~~further notes~~
@@ -39,17 +39,25 @@ csp_cost_segmentation(las, inv, Voxel_size = 0.3, V_w = 0,L_w = 0,S_w = 0, DBH_w
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
+\code{\link{comparative_shortest_path}}
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
+# read example data
+file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+tls = lidR::readTLSLAS(file)
 
-## The function is currently defined as
-function (x)
-{
-  }
+# normalize height
+tls <- TreeLS::tlsNormalize(tls)
+
+# find tree positions as starting point for segmentation
+map <- TreeLS::treeMap(tls)
+
+# segment trees
+segmented <- tls %>%
+  lidR::filter_poi(Classification != 2) %>%
+  csp_cost_segmentation(map, 1)
+
+lidR::plot(segmented, color = "TreeID")
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):

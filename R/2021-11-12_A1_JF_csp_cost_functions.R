@@ -4,7 +4,7 @@ lapply(packages, require, character.only = TRUE)
 
 
 # thx zoe https://github.com/zoeschindler/masterarbeit/blob/main/03_raster_calculation_functions.R
-add_geometry <- function(las, k = 10,  n_cores = 1) {
+.add_geometry <- function(las, k = 10,  n_cores = 1) {
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
   eigen <- eigen_decomposition(las, k, n_cores) # 20 neighbours, n cores
@@ -18,7 +18,7 @@ add_geometry <- function(las, k = 10,  n_cores = 1) {
 }
 
 
-voxelize_points_mean_attributes = function(las, res){
+.voxelize_points_mean_attributes = function(las, res){
   Intensity <- NULL
 
   if (length(res) == 1L)  {
@@ -69,7 +69,6 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
   #update weights
   adjacency_df$weight <- with(vox@data[adjacency_df$adjacency_list], adjacency_df$weight^2 + ((1-Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
-  #adjacency_df$weight[is.na(adjacency_df$weight)] <- mean(adjacency_df$weight, na.rm = T)
 
   #-----------------------
   # compute dijkstra matrix for each seed (trunk)
@@ -98,9 +97,9 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   min_matrix <- data.table::data.table(PointID = as.integer(igraph::V(vox_graph)$name), TreeID = seeds$TreeID[as.integer(min_matrix)], dist = min_dist_matrix)
 
   min_matrix$SeedID[min_dist_matrix == Inf] <- 0 # set SeedIDs 0 for voxels which can't be reached by any seed
-  #-----------------------
+
   # assign voxels to seeds (minimum cost/distance to trunk)
-  #-----------------------
+
 
   vox <- vox %>%remove_lasattribute("TreeID") %>% add_attribute(as.integer(rownames(vox@data)), "PointID")
   vox@data <- merge(vox@data, min_matrix, bz = "PointID")
@@ -111,18 +110,24 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 # this is the main function
 # it requires a normalized las point cloud of a forest patch with already calculated geometric features
 # using the add geometry function,
-# a forest inventory as it can be calculatedby TreeLS::tlsInventory
+# a forest inventory as it can be calculated by TreeLS::tlsInventory
 
 csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0,L_w = 0,S_w = 0, N_cores = 1){
 
   if("TreeID" %in% names(las@data)) las <- remove_lasattribute(las, "TreeID")
 
-  vox <- voxelize_points_mean_attributes(las, res = Voxel_size)
+  vox <- .voxelize_points_mean_attributes(las, res = Voxel_size)
 
-  inv <- map@data[map@data$TreePosition,]
-  if(nrow(inv) == 0){
-    inv <- aggregate(map@data[map@data$Z > 1 & map@data$Z < 1.5,], by = list(map@data$TreeID[map@data$Z > 1 & map@data$Z < 1.5]), median)
+  if(typeof(map) == "S4"){
+    inv <- map@data[map@data$TreePosition,]
+    if(nrow(inv) == 0){
+      inv <- aggregate(map@data[map@data$Z > 1 & map@data$Z < 1.5,], by = list(map@data$TreeID[map@data$Z > 1 & map@data$Z < 1.5]), median)
+    }
+  } else {
+    inv <- map
   }
+
+
 
 
   # add Seeds

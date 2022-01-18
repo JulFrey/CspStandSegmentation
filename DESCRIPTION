@@ -1,7 +1,7 @@
 Package: CspStandSegmentation
 Type: Package
 Title: Comparative Shortest Path Stand Segmentation
-Version: 0.1.0
+Version: 0.1.1
 Author: Dr. Julian Frey
 Maintainer: Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 Description: This package provides a function to segment trees from a stand scanned with terrestrial laser scanning. It strongly builds uppon the work of the lidR and the TreeLS packages.
