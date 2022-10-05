@@ -8,12 +8,14 @@
 The function performs a Dijkstra algorithem on a 3D voxel file to assign every voxel to the closest seed point using the igraph package.
 }
 \usage{
-comparative_shortest_path(vox, adjacency_df, seeds, v_w = 0,l_w = 0,s_w = 0, N_cores = parallel::detectCores()-1, Voxel_size)
+comparative_shortest_path(vox, adjacency_df, seeds, v_w = 0,l_w = 0,s_w = 0,
+N_cores = parallel::detectCores()-1, Voxel_size)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{vox}{a LAS S4 element with XYZ voxel coordinates in the @data slot.
+  \item{vox}{a LAS S4 element with XYZ voxel coordinates in the @data slot.}
   \item{adjacency_df}{a data.frame with voxel ids (row numbers) in the first collumn and a neighbouring voxel id in the second collumn and the weight (distance) in the third collumn. Might be generated using the dbscan::frNN function (which requires reshaping the data).}
+    \item{seeds}{seed points for tree positions.}
   \item{v_w,l_w,s_w}{wheights for verticality, linerity spericity see \code{\link{csp_cost_segmentation}} }
   \item{N_cores}{Number of cpu cores for multithreading}
   \item{Voxel_size}{Edge length used to create the voxels. This is only important to gain compareable distance weights on different voxel sizes. Should be greater than 0.}
@@ -32,7 +34,7 @@ comparative_shortest_path(vox, adjacency_df, seeds, v_w = 0,l_w = 0,s_w = 0, N_c
 %% ~put references to the literature/web site here ~
 }
 \author{
-Dr. Julian Frey
+Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 }
 \note{
 %%  ~~further notes~~
@@ -42,8 +44,9 @@ Dr. Julian Frey
 
 \seealso{
 \code{\link{csp_cost_segmentation}}
+}
 \examples{
-
+%% ~~no examples~~
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):

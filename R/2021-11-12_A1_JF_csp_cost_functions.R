@@ -1,10 +1,10 @@
 
-packages <- c("lidR","TreeLS", "dbscan", "future.apply", "igraph", "foreach")
-lapply(packages, require, character.only = TRUE)
+#packages <- c("lidR","TreeLS", "dbscan", "future.apply", "igraph", "foreach")
+#lapply(packages, require, character.only = TRUE)
 
 
 # thx zoe https://github.com/zoeschindler/masterarbeit/blob/main/03_raster_calculation_functions.R
-.add_geometry <- function(las, k = 10,  n_cores = 1) {
+add_geometry <- function(las, k = 10,  n_cores = 1) {
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
   eigen <- eigen_decomposition(las, k, n_cores) # 20 neighbours, n cores
@@ -18,7 +18,7 @@ lapply(packages, require, character.only = TRUE)
 }
 
 
-.voxelize_points_mean_attributes = function(las, res){
+voxelize_points_mean_attributes = function(las, res){
   Intensity <- NULL
 
   if (length(res) == 1L)  {
@@ -34,8 +34,7 @@ lapply(packages, require, character.only = TRUE)
   voxels <- las@data[, lapply(.SD, mean), by = by]
   data.table::setnames(voxels, c("X","Y","Z","X_gr","Y_gr","Z_gr",names(las@data)[4:length(names(las@data))]))
 
-
-  output <- LAS(voxels, header = las@header, proj4string = las@proj4string, check = FALSE, index = las@index)
+  output <- LAS(voxels, header = las@header, crs = st_crs(las), check = FALSE, index = las@index)
   return(output)
 }
 
@@ -65,10 +64,11 @@ add_las_attributes <- function(las){
 
 
 # V_w, L_W, S_w are the weights for 1-verticality, sphericity, linearity
-comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds = tree_seeds, v_w = 0,l_w = 0,s_w = 0, N_cores = parallel::detectCores()-1, Voxel_size){
+comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0,l_w = 0,s_w = 0, N_cores = parallel::detectCores()-1, Voxel_size){
 
   #update weights
   adjacency_df$weight <- with(vox@data[adjacency_df$adjacency_list], adjacency_df$weight^2 + ((1-Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
+  adjacency_df$weight[adjacency_df$weight < 0] <- 0.01 * Voxel_size # catch negative weights
 
   #-----------------------
   # compute dijkstra matrix for each seed (trunk)
@@ -116,7 +116,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0,L_w = 0,S_
 
   if("TreeID" %in% names(las@data)) las <- remove_lasattribute(las, "TreeID")
 
-  vox <- .voxelize_points_mean_attributes(las, res = Voxel_size)
+  vox <- voxelize_points_mean_attributes(las, res = Voxel_size)
 
   if(typeof(map) == "S4"){
     inv <- map@data[map@data$TreePosition,]

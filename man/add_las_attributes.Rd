@@ -1,20 +1,18 @@
 \name{add_las_attributes}
 \alias{add_las_attributes}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{Add all las_attributes to a las file
+\title{Add all las_attributes from las@data to the header of a las element
 %%  ~~function to do ... ~~
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+The helperfunction adds all headings from las@data which are nor part of lidR:::LASATTRIBUTES to the las header using lidR::add_lasattribute. Only attributes that are included in the header got saved when using lidR::writeLAS, this is a convinient way to add them.
 }
 \usage{
-add_geometry(las, k , n_cores)
+add_las_attributes(las)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{x}{
-%%     ~~Describe \code{x} here~~
-}
+  \item{las}{an element of lidR::LAS class}
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
@@ -30,7 +28,7 @@ add_geometry(las, k , n_cores)
 %% ~put references to the literature/web site here ~
 }
 \author{
-%%  ~~who you are~~
+Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 }
 \note{
 %%  ~~further notes~~
@@ -42,14 +40,13 @@ add_geometry(las, k , n_cores)
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
+LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
+las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
 
-## The function is currently defined as
-function (x)
-{
-  }
+las@data$noise <- runif(nrow(las@data))
+las@data$noiseZ <- las@data$var1 * las@data$Z
+
+las <- add_las_attributes(las)
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):

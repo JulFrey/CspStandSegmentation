@@ -5,28 +5,28 @@
 %%  ~~function to do ... ~~
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+C++ helper function to compute eigenvalues for geometric feature calculation.
 }
 \usage{
-eigen_decomposition(las, k, n_cores)
+eigen_decomposition(las, k, ncpu)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
   \item{las}{LAS element}
   \item{k}{k nearest neighbours}
-  \item{n_cores}{number of cpu cores to use}
+  \item{ncpu}{number of cpu cores to use}
 }
 \details{
 %%  ~~ If necessary, more details than the description above ~~
 }
 \value{
-The function resturns for every point the 3 eigenvalues and
+The function resturns for every point the 3 eigenvalues and the third element of the third eigenvector. These values are needed to compute planarity, linerity, verticality etc. in the add_geometry function
 }
 \references{
 %% ~put references to the literature/web site here ~
 }
 \author{
-Dr. Julian Frey
+Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 }
 \note{
 %%  ~~further notes~~
@@ -35,8 +35,7 @@ Dr. Julian Frey
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
-}
+\link{add_geometry}}
 \examples{
 
 }

@@ -1,23 +1,22 @@
 \name{voxelize_points_mean_attributes}
 \alias{voxelize_points_mean_attributes}
 %- Also NEED an '\alias' for EACH other topic documented here.
-\title{voxelize_points_mean_attributes
+\title{helper function to voxelize a las element
 %%  ~~function to do ... ~~
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+Calculate voxel mean values for all numeric attributes in the las@data table including the XYZ-coordinates.
 }
 \usage{
-add_geometry(las, k , n_cores)
+voxelize_points_mean_attributes(las, res)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{x}{
-%%     ~~Describe \code{x} here~~
-}
+  \item{las}{a lidR::LAS element}
+  \item{res}{voxel resolution in meter}
 }
 \details{
-%%  ~~ If necessary, more details than the description above ~~
+Returns a las element with XYZ-coordinates as the voxel center and X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as all other numeric collumns voxel mean  values with their original name.
 }
 \value{
 %%  ~Describe the value returned
@@ -30,7 +29,7 @@ add_geometry(las, k , n_cores)
 %% ~put references to the literature/web site here ~
 }
 \author{
-%%  ~~who you are~~
+Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 }
 \note{
 %%  ~~further notes~~
@@ -39,24 +38,11 @@ add_geometry(las, k , n_cores)
 %% ~Make other sections like Warning with \section{Warning }{....} ~
 
 \seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
+\code{\link{voxelize_points}}
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
-
-## The function is currently defined as
-function (x)
-{
-  }
+# read example data
+file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+tls = lidR::readTLSLAS(file)
+tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 }
-% Add one or more standard keywords, see file 'KEYWORDS' in the
-% R documentation directory (show via RShowDoc("KEYWORDS")):
-% \keyword{ ~kwd1 }
-% \keyword{ ~kwd2 }
-% Use only one keyword per line.
-% For non-standard keywords, use \concept instead of \keyword:
-% \concept{ ~cpt1 }
-% \concept{ ~cpt2 }
-% Use only one concept per line.

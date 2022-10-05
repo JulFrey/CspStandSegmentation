@@ -5,19 +5,18 @@
 %%  ~~function to do ... ~~
 }
 \description{
-%%  ~~ A concise (1-5 lines) description of what the function does. ~~
+Adds the collums x_vox, y_vox and z_vox in the given ressolution to the las element. This is convinient if informations have been derived in voxel space and these should be attached to the original points.
 }
 \usage{
-add_voxel_coordinates(las, k , n_cores)
+add_voxel_coordinates(las, res)
 }
 %- maybe also 'usage' for other objects documented here.
 \arguments{
-  \item{x}{
-%%     ~~Describe \code{x} here~~
-}
+  \item{las}{an element of lidR::LAS class}
+  \item{res}{voxel ressolution in [m]}
 }
 \details{
-%%  ~~ If necessary, more details than the description above ~~
+Voxel coordinates derived with this function are identical as those derived by lidR::voxelize.
 }
 \value{
 %%  ~Describe the value returned
@@ -30,7 +29,7 @@ add_voxel_coordinates(las, k , n_cores)
 %% ~put references to the literature/web site here ~
 }
 \author{
-%%  ~~who you are~~
+Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 }
 \note{
 %%  ~~further notes~~
@@ -42,14 +41,12 @@ add_voxel_coordinates(las, k , n_cores)
 %% ~~objects to See Also as \code{\link{help}}, ~~~
 }
 \examples{
-##---- Should be DIRECTLY executable !! ----
-##-- ==>  Define data, use random,
-##--	or do  help(data=index)  for the standard data sets.
+LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
+las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
 
-## The function is currently defined as
-function (x)
-{
-  }
+las <- add_voxel_coordinates(las,res = 1)
+
+lidR::plot(las, color = 'z_vox')
 }
 % Add one or more standard keywords, see file 'KEYWORDS' in the
 % R documentation directory (show via RShowDoc("KEYWORDS")):
