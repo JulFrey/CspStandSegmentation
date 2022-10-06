@@ -3,9 +3,17 @@
 Author: Julian Frey, University of Freiburg, Chair of Forest Growth and Dendroecology
 
 ## installation
+
+If you are working on Windows operating systems you will need to install Rtools prior to installation: <https://cran.r-project.org/bin/windows/Rtools/>
+
 ```R
-install.packages('Rcpp', 'lidR', 'TreeLS', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table', 'future.apply')
+install.packages(c('devtools', 'Rcpp', 'lidR', 'TreeLS', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table', 'future.apply'))
 devtools::install_github('https://github.com/JulFrey/CspStandSegmentation')
+
+# Check if it is working
+library(CspStandSegmentation)
+example("csp_cost_segmentation")
+
 ```
 
 ## Usage
