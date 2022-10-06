@@ -5,11 +5,12 @@ Author: Julian Frey, University of Freiburg, Chair of Forest Growth and Dendroec
 
 ## Installation
 
-If you are working on Windows operating systems you will need to install Rtools prior to installation: <https://cran.r-project.org/bin/windows/Rtools/>
+If you are working on Windows operating systems you will need to install Rtools prior to installation: <https://cran.r-project.org/bin/windows/Rtools/> and on mac Xcode is required. 
 
 ```R
-install.packages(c('devtools', 'Rcpp', 'lidR', 'TreeLS', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table', 'future.apply'))
+install.packages(c('devtools', 'Rcpp', 'lidR', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table'))
 
+devtools::install_github('tiagodc/TreeLS')
 devtools::install_github('https://github.com/JulFrey/CspStandSegmentation')
 
 # Check if it is working
