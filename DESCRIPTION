@@ -8,5 +8,5 @@ Description: This package provides a function to segment trees from a stand scan
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-Imports: Rcpp (>= 1.0.5), lidR, TreeLS, dbscan, igraph, foreach, parallel, doParallel,magrittr, data.table, future.apply
+Imports: Rcpp (>= 1.0.5), lidR, TreeLS, dbscan, igraph, foreach, parallel, doParallel,magrittr, data.table, sf, terra
 LinkingTo: Rcpp, RcppArmadillo, lidR, BH
