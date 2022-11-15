@@ -49,7 +49,6 @@ voxelize_points_mean_attributes <- function(las, res) {
 
 add_voxel_coordinates <- function(las, res) {
 
-
   # create voxel coordinates
   vox <- lidR:::group_grid_3d(las@data$X, las@data$Y, las@data$Z, c(res, res), c(0, 0, 0.5*res))
 
