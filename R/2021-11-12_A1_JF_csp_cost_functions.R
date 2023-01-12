@@ -169,7 +169,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   vox@data <- rbind(vox@data, inv[,c('X', 'Y', 'Z', 'X_gr', 'Y_gr', 'Z_gr', 'Sphericity', 'Linearity', 'Verticality', 'TreeID')])
 
   # possible seeds
-  seed_range <- (nrow(vox@data) - nrow(inv)):nrow(vox@data)
+  seed_range <- (nrow(vox@data) - nrow(inv) + 1):nrow(vox@data)
   tree_seeds <- data.frame(SeedID = seed_range, TreeID = vox@data$TreeID[seed_range])
   rm(seed_range)
 
@@ -204,30 +204,30 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 # ------------------------------------------------------------------------------
 
 # own function to calculate tree start points to get rid of TreeLS (since its not on cran)
-find_base_coordinates_raster <- function(las, zmin = 0.5, zmax = 2, res = 0.1, quantile = 0.8, merge_radius = 0.5) {
-  slice <- las |>
-    filter_poi(Classification != 2 & Z > zmin & Z < zmax)
-  if (lidR::is.empty(las)) {
-    stop('No points found in the specified zmin/xmax range. Is your point cloud normalized?')
-  }
-  density <- slice |>
-    grid_metrics(~length(Z), res = res)
-  density <- density > quantile(density, quantile)
-  poly <- density |>
-    terra::rast() |>
-    terra::as.polygons(dissolve = T) |>
-    sf::st_as_sf()
-  centroids <- poly[[2]][2] |>
-    st_cast('POLYGON') |>
-    sf::st_centroid()
-  cluster <- centroids |>
-    sf::st_coordinates() |>
-    dbscan::dbscan(merge_radius, 1)
-  centroids <- sf::st_as_sf(centroids)
-  centroids['cluster'] <- cluster$cluster
-  centroids <- centroids[[1]][which(!duplicated(cluster$cluster))]
-  map <- data.frame(st_coordinates(centroids), Z = 0, TreeID = 1:length(centroids))
-  return(map)
+#' Find seeds for tree segmentation based on a density raster and cluster analyses
+#'
+#' @param las A LAS point cloud object.
+#' @param res Resolution of the density raster.
+#' @param eps Search radius to combine positive raster cells should be >res.
+#' @param q Threshold quantile for a stem in the density raster.
+#' @param zmin,zmax Lower and Upper boundary for the density raster.
+#' @return A data.frame with seed coordinates.
+#' @examples
+#' file = system.file("extdata", "pine_plot.laz", package = "TreeLS")
+#' tls = readTLS(file) |> classify_ground(csf(), last_returns = F) |> normalize_height(tin())
+#' find_seeds(las = tls, res = 0.2, eps = 0.4, q = 0.97, 0.5, 2)
+find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2){
+  slice <- las |>  filter_poi(Z > zmin & Z < zmax)
+  density <- grid_metrics(slice, length(Z), res = res)
+  height <- grid_metrics(slice, mean(Z), res = res)
+  seed_rast <- terra::as.points(terra::rast(density > quantile(values(density),probs = q, na.rm = T)))
+  seed_rast <- terra::subset(seed_rast, seed_rast$layer == 1) |> as.data.frame(geom = 'XY')
+  seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
+  seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
+  z_vals <- extract(height, seed_rast[,1:2])
+  seed_rast <- cbind(seed_rast, z_vals)[,c(1,2,4,3)]
+  names(seed_rast) <- c('X','Y','Z','TreeID')
+  return(seed_rast)
 }
 
 # ------------------------------------------------------------------------------
