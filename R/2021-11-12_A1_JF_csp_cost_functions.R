@@ -262,7 +262,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   vox <- vox |>
     remove_lasattribute('TreeID') |>
     add_attribute(as.integer(rownames(vox@data)), 'PointID')
-  vox@data <- merge(vox@data, min_matrix, bz = 'PointID')
+  vox@data <- merge(vox@data, min_matrix, by = 'PointID')
   return(vox)
 }
 
@@ -392,11 +392,21 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   # compile to a data frame
   adjacency_df <- data.frame(adjacency_list_id,adjacency_list, weight = dists_vec) #, TreeID = vox@data$TreeID[adjacency_list_id]
 
+  # remove seeds which are outside of the point cloud
+  exclude_loops <- dbscan::comps(neighborhood_list) == 1
+  adjacency_df <- adjacency_df[adjacency_df$adjacency_list_id %in% c(1:nrow(vox))[exclude_loops] & adjacency_df$adjacency_list %in% c(1:nrow(vox))[exclude_loops],]
+  seeds_in <- tree_seeds$SeedID %in% adjacency_df$adjacency_list_id
+  #plot(Y ~ X, data = inv, col = seeds_in+2)
+  tree_seeds <- tree_seeds[seeds_in,]
+
   # clean
   rm(adjacency_list, adjacency_list_id, dists_vec, neighborhood_list)
 
   # calculate csp including the weights
   vox2 <- comparative_shortest_path(vox = vox, adjacency_df = adjacency_df, v_w = V_w, l_w = L_w, s_w = S_w, Voxel_size = Voxel_size, N_cores = N_cores, seeds = tree_seeds)
+  #unique(vox2$TreeID) %in% tree_seeds$TreeID
+  #plot(LAS(vox2))
+  #plot(Y ~ X, data = inv, col = inv$TreeID %in% unique(vox2$TreeID)+1)
 
   las <- las |>
     add_voxel_coordinates(Voxel_size) #|> remove_lasattribute('Radius')
