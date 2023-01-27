@@ -448,6 +448,7 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
   seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
   seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
   z_vals <- extract(height, seed_rast[,1:2])
+  z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
   seed_rast <- cbind(seed_rast, z_vals)[,c(1,2,4,3)]
   names(seed_rast) <- c('X','Y','Z','TreeID')
   return(seed_rast)
