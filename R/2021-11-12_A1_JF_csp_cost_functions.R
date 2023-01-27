@@ -443,7 +443,7 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
   slice <- las |>  filter_poi(Z > zmin & Z < zmax)
   density <- grid_metrics(slice, length(Z), res = res)
   height <- grid_metrics(slice, mean(Z), res = res)
-  seed_rast <- terra::as.points(terra::rast(density > quantile(values(density),probs = q, na.rm = T)))
+  seed_rast <- terra::as.points(terra::rast(density > quantile(terra::values(density),probs = q, na.rm = T)))
   seed_rast <- terra::subset(seed_rast, seed_rast$layer == 1) |> as.data.frame(geom = 'XY')
   seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
   seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
