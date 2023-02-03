@@ -392,11 +392,13 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   # compile to a data frame
   adjacency_df <- data.frame(adjacency_list_id,adjacency_list, weight = dists_vec) #, TreeID = vox@data$TreeID[adjacency_list_id]
 
-  # remove seeds which are outside of the point cloud
-  exclude_loops <- dbscan::comps(neighborhood_list) == 1
+  # # remove seeds which are outside of the point cloud
+  exclude_loops <- dbscan::comps(neighborhood_list)
+  tab_loops <- table(exclude_loops)
+  exclude_loops <- exclude_loops %in% as.integer(names(tab_loops)[tab_loops > 3])
   adjacency_df <- adjacency_df[adjacency_df$adjacency_list_id %in% c(1:nrow(vox))[exclude_loops] & adjacency_df$adjacency_list %in% c(1:nrow(vox))[exclude_loops],]
   seeds_in <- tree_seeds$SeedID %in% adjacency_df$adjacency_list_id
-  #plot(Y ~ X, data = inv, col = seeds_in+2)
+  # #plot(Y ~ X, data = inv, col = seeds_in+2)
   tree_seeds <- tree_seeds[seeds_in,]
 
   # clean
@@ -447,7 +449,7 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
   seed_rast <- terra::subset(seed_rast, seed_rast$layer == 1) |> as.data.frame(geom = 'XY')
   seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
   seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
-  z_vals <- extract(height, seed_rast[,1:2])
+  z_vals <- terra::extract(height, seed_rast[,1:2])
   z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
   seed_rast <- cbind(seed_rast, z_vals)[,c(1,2,4,3)]
   names(seed_rast) <- c('X','Y','Z','TreeID')
