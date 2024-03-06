@@ -227,7 +227,10 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
   # update weights
   adjacency_df$weight <- with(vox@data[adjacency_df$adjacency_list], adjacency_df$weight^2 + ((1 - Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
-  adjacency_df$weight[adjacency_df$weight < 0] <- 0.01 * Voxel_size # catch negative weights
+  adjacency_df$weight[adjacency_df$weight < 0] <- 0.001 * Voxel_size # catch negative weights
+
+  # set distances to seeds 0
+  adjacency_df$weight[adjacency_df$adjacency_list_id %in% seeds$SeedID] <- 0
 
   #-----------------------
   # compute dijkstra matrix for each seed (trunk)
@@ -244,10 +247,17 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   dists_list <- foreach::foreach(
     t = 1:nrow(seeds),
     .noexport = c('las', 'map', 'vox', 'tree_seeds', 'ground', 'dtm', 'adjacency_df', 'inv'),
-    .errorhandling = c('remove')) %dopar% {
+    .errorhandling = c('pass')) %dopar% {
       return(igraph::distances(vox_graph, as.character(seeds$SeedID[t]), algorithm = 'dijkstra'))
     }
   doParallel::stopImplicitCluster()
+
+  unreachable <- which(sapply(dists_list,function(x) is.character(x[[1]])))
+  if(length(unreachable) > 0) {
+    warning('Not all seeds could be reached by the graph. Try a lower resolution or a different seed set.')
+    seeds <- seeds[-unreachable,]
+    dists_list <- dists_list[-unreachable]
+    }
 
   # combine to matrix
   dist_matrix <- simplify2array(dists_list)[1,,]
@@ -338,7 +348,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
   if ('TreeID' %in% names(las@data)) {
     las <- las |>
-      remove_lasattribute('TreeID')
+      lidR::remove_lasattribute('TreeID')
   }
 
   vox <- voxelize_points_mean_attributes(las, res = Voxel_size)
@@ -354,15 +364,15 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
   # add seeds
   vox <- vox |>
-    add_lasattribute(0, 'TreeID', 'TreeID')
+    lidR::add_lasattribute(0, 'TreeID', 'TreeID')
   vox@data <- vox@data[,c('X', 'Y', 'Z', 'X_gr', 'Y_gr', 'Z_gr', 'Sphericity', 'Linearity', 'Verticality', 'TreeID')]
 
-  # lift the starting points if LAS is normalized or map doesn't have Z values
-  if (sum(inv$Z) == 0 | 'Zref' %in% names(las)) {
-    inv$Z <- 1.3
-  } else {
-    inv$Z <- inv$Z + 1
+  # lift the starting points if map doesn't have Z values
+  if (sum(inv$Z) == 0) {
+    inv$Z <- 0.5
   }
+  if(tls@header$`Min Z` > max(inv$Z)) {stop('The minimum Z value of the point cloud is higher than the tree positions. Is the inventory without Z values and the point clound not normalized?')}
+
   inv <- inv |>
     cbind(X_gr = inv$X) |>
     cbind(Y_gr = inv$Y) |>
@@ -378,7 +388,8 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   rm(seed_range)
 
   # use dbscan to calculate a matrix of neighboring points
-  neighborhood_list <- dbscan::frNN(vox@data[,4:6], Voxel_size * 2, bucketSize = 22) # voxel size * 1.42 (sqrt(1^2 + 1^2)) 1.73
+  neighborhood_list <- dbscan::frNN(vox@data[,c('X_gr', 'Y_gr', 'Z_gr')], Voxel_size * 2, bucketSize = 22)
+  # dbscan::frNN(vox@data[,c('X_gr', 'Y_gr', 'Z_gr')], Voxel_size * 2, bucketSize = 22)  # voxel size * 1.42 (sqrt(1^2 + 1^2)) 1.73
 
   # the result has to be disentangled we get the adjacent voxel ids first
   adjacency_list <- unlist(neighborhood_list$id)
@@ -391,16 +402,15 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
   # compile to a data frame
   adjacency_df <- data.frame(adjacency_list_id,adjacency_list, weight = dists_vec) #, TreeID = vox@data$TreeID[adjacency_list_id]
-
+ #, TreeID = vox@data$TreeID[adjacency_list_idk]
   # # remove seeds which are outside of the point cloud
-  exclude_loops <- dbscan::comps(neighborhood_list)
-  tab_loops <- table(exclude_loops)
-  exclude_loops <- exclude_loops %in% as.integer(names(tab_loops)[tab_loops > 3])
-  adjacency_df <- adjacency_df[adjacency_df$adjacency_list_id %in% c(1:nrow(vox))[exclude_loops] & adjacency_df$adjacency_list %in% c(1:nrow(vox))[exclude_loops],]
-  seeds_in <- tree_seeds$SeedID %in% adjacency_df$adjacency_list_id
-  # #plot(Y ~ X, data = inv, col = seeds_in+2)
-  tree_seeds <- tree_seeds[seeds_in,]
-
+  # exclude_loops <- dbscan::comps(neighborhood_list)
+  # tab_loops <- table(exclude_loops)
+  # exclude_loops <- exclude_loops %in% as.integer(names(tab_loops)[tab_loops > 3])
+  # adjacency_df <- adjacency_df[adjacency_df$adjacency_list_id %in% c(1:nrow(vox))[exclude_loops] & adjacency_df$adjacency_list %in% c(1:nrow(vox))[exclude_loops],]
+  # seeds_in <- tree_seeds$SeedID %in% adjacency_df$adjacency_list_id
+  # # #plot(Y ~ X, data = inv, col = seeds_in+2)
+  # tree_seeds <- tree_seeds[seeds_in,]
   # clean
   rm(adjacency_list, adjacency_list_id, dists_vec, neighborhood_list)
 
