@@ -243,7 +243,8 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
   unreachable <- which(sapply(dists_list,function(x) is.character(x[[1]])))
   if(length(unreachable) > 0) {
-    warning('Not all seeds could be reached by the graph. Try a lower resolution or a different seed set.')
+    warning('Not all base positions could be reached by the graph. Try a lower resolution or a different approach to find tree base positions. Error messages for the unreachble TreeIDs:')
+    warning(paste0(unreachable , paste(":",paste(dists_list[unreachable]), collaps = " "), "\n"), call. = F)
     seeds <- seeds[-unreachable,]
     dists_list <- dists_list[-unreachable]
     }
