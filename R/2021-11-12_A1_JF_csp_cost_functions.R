@@ -5,7 +5,6 @@ invisible(lapply(c('lidR','TreeLS', 'dbscan', 'igraph', 'foreach'), require, cha
 
 # thx zoe https://github.com/zoeschindler/masterarbeit/blob/main/03_raster_calculation_functions.R
 
-
 #' Add geometric features to a LAS object
 #'
 #' The function calls a fast cpp multi-core function to calculate eigenvalues
@@ -25,7 +24,7 @@ invisible(lapply(c('lidR','TreeLS', 'dbscan', 'igraph', 'foreach'), require, cha
 #' @return The function returns a single LAS object with the geometric features
 #' attached to it in the LAS@data section.
 #' @note %% ~~further notes~~
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
 #' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
@@ -52,8 +51,6 @@ add_geometry <- function(las, k = 10, n_cores = 1) {
 
 # ------------------------------------------------------------------------------
 
-
-
 #' helper function to voxelize a las element
 #'
 #' Calculate voxel mean values for all numeric attributes in the las@data table
@@ -69,7 +66,7 @@ add_geometry <- function(las, k = 10, n_cores = 1) {
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
 #' @note %% ~~further notes~~
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{voxelize_points}}
 #' @examples
 #'
@@ -106,8 +103,6 @@ voxelize_points_mean_attributes <- function(las, res) {
 
 # ------------------------------------------------------------------------------
 
-
-
 #' Add voxel coordinates to a las file
 #'
 #' Adds the collums x_vox, y_vox and z_vox in the given ressolution to the las
@@ -123,7 +118,7 @@ voxelize_points_mean_attributes <- function(las, res) {
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
 #' @note %% ~~further notes~~
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
 #' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
@@ -149,8 +144,6 @@ add_voxel_coordinates <- function(las, res) {
 
 # ------------------------------------------------------------------------------
 
-
-
 #' Add all las_attributes from las@data to the header of a las element
 #'
 #' The helper function adds all headings from las@data which are nor part of
@@ -158,13 +151,12 @@ add_voxel_coordinates <- function(las, res) {
 #' attributes that are included in the header got saved when using
 #' lidR::writeLAS, this is a convenient way to add them.
 #'
-#'
 #' @param las an element of lidR::LAS class
 #' @return %% ~Describe the value returned %% If it is a LIST, use %%
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
 #' @note %% ~~further notes~~
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
 #' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
@@ -195,12 +187,10 @@ add_las_attributes <- function(las) {
 
 # V_w, L_W, S_w are the weights for 1-verticality, sphericity, linearity
 
-
 #' helper function for csp_cost_segemntation
 #'
 #' The function performs a Dijkstra algorithm on a 3D voxel file to assign
 #' every voxel to the closest seed point using the igraph package.
-#'
 #'
 #' @param vox a LAS S4 element with XYZ voxel coordinates in the @data slot.
 #' @param adjacency_df a data.frame with voxel ids (row numbers) in the first
@@ -217,10 +207,9 @@ add_las_attributes <- function(las) {
 #' @return %% ~Describe the value returned %% If it is a LIST, use %%
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{csp_cost_segmentation}}
 #' @examples
-#'
 #'
 #' @export comparative_shortest_path
 comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size) {
@@ -283,8 +272,6 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 # using the add geometry function,
 # a forest inventory as it can be calculated by TreeLS::tlsInventory
 
-
-
 #' Comparative Shortest Path with cost weighting tree segmentation
 #'
 #' Segments single trees from forest point clouds based on tree positions
@@ -321,7 +308,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' foreach package.
 #' @return Returns a copy of the las point cloud with an additional field for
 #' the TreeID.
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{comparative_shortest_path}}
 #' @examples
 #'
@@ -431,25 +418,20 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
 # own function to calculate tree start points to get rid of TreeLS (since its not on cran)
 
-
 #' Find stem base position using a density raster approach
-#'
-#'
-#'
 #' @param las an element of lidR::LAS class
 #' @param zmin lower search boundary
 #' @param zmax upper search boundary
+#' @param q quantile of raster density to assign a tree region
+#' @param eps search radius to merge base points
 #' @param res raster resolution
 #' @param quantile raster density quantile to assign a tree region
 #' @param merge_radius search radius to merge base points
 #' @return %% ~Describe the value returned %% If it is a LIST, use %%
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
-#'
-#'
-#'
 #' @export find_base_coordinates_raster
 find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2){
   slice <- las |>  filter_poi(Z > zmin & Z < zmax)
@@ -470,12 +452,8 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
 
 # own function to calculate tree start points to get rid of TreeLS (since its not on cran)
 
-
 #' Find stem base position using a geometric feature filtering and clustering
 #' approach
-#'
-#'
-#'
 #' @param las an element of lidR::LAS class
 #' @param zmin lower search boundary
 #' @param zmax upper search boundary
@@ -489,11 +467,8 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
 #' @return %% ~Describe the value returned %% If it is a LIST, use %%
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
-#' @author Dr. Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
-#'
-#'
-#'
 #' @export find_base_coordinates_geom
 find_base_coordinates_geom <- function(las, zmin = 0.5, zmax = 2, res = 0.5, min_verticality = 0.9, min_planarity = 0.5, min_cluster_size = NULL) {
 
