@@ -5,7 +5,7 @@ Author: Julian Frey, University of Freiburg, Chair of Forest Growth and Dendroec
 
 ## Installation
 
-If you are working on Windows operating systems you will need to install Rtools prior to installation: <https://cran.r-project.org/bin/windows/Rtools/> and on mac Xcode is required. 
+If you are working on Windows operating systems, you will need to install Rtools prior to installation: https://cran.r-project.org/bin/windows/Rtools/>. On Mac, Xcode is required. 
 
 ```R
 install.packages(c('devtools', 'Rcpp', 'lidR', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table'))
@@ -20,7 +20,7 @@ example("csp_cost_segmentation")
 ```
 
 ## Usage
-The package is strongly based on the `TreeLS` and `lidR` packages and uses the las file structure. Smaller point clouds can be directly segmented using the ```csp_cost_segmentation``` function. This requires a set of tree positions (map) as starting points, which can be derived using ```TreeLS::treeMap``` function, which might require some parameter optimization. Theoretically, tree positions might also come from field measurements or manual assignments.:
+The package is firmly based on the `TreeLS` and `lidR` packages and uses the las file structure. Smaller point clouds can be directly segmented using the ```csp_cost_segmentation``` function. This requires a set of tree positions (map) as starting points, which can be derived using the ```TreeLS::treeMap``` function, which might require parameter optimization. Theoretically, tree positions might also come from field measurements or manual assignments.:
 
 ```R
 # read example data
@@ -30,7 +30,7 @@ tls = lidR::readTLSLAS(file)
 # normalize height
 tls <- TreeLS::tlsNormalize(tls)
 
-# find tree positions as starting point for segmentation
+# find tree positions as starting points for segmentation
 map <- TreeLS::treeMap(tls)
 
 # segment trees
