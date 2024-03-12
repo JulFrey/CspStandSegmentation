@@ -333,12 +333,22 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #'
 #' @export csp_cost_segmentation
 csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1) {
-
+  # check if TreeID already exists
   if ('TreeID' %in% names(las@data)) {
+    warning("'las' already contains TreeIDs', which will be overwritten.")
     las <- las |>
       lidR::remove_lasattribute('TreeID')
   }
+  # check if geometric features exist in las and copute dummies if not
+  if(!all(c('Sphericity', 'Linearity', 'Verticality') %in% names(las@data))) {
+    warning("no geometric features in las.  V_w, L_w and/or S_w weights will be ignored.Use 'las <- las |> add_gemetry()' prior to calling this function.")
+    las <- las |>
+      lidR::add_lasattribute(0,'Sphericity','Sphericity') |>
+      lidR::add_lasattribute(0,'Linearity','Linearity') |>
+      lidR::add_lasattribute(0,'Verticality','Verticality')
+  }
 
+  # voxelize las with mean attributes
   vox <- voxelize_points_mean_attributes(las, res = Voxel_size)
 
   if (typeof(map) == 'S4') {
@@ -359,7 +369,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   if (sum(inv$Z) == 0) {
     inv$Z <- 0.5
   }
-  if(tls@header$`Min Z` > max(inv$Z)) {stop('The minimum Z value of the point cloud is higher than the tree positions. Is the inventory without Z values and the point clound not normalized?')}
+  if(las@header$`Min Z` > max(inv$Z)) {stop('The minimum Z value of the point cloud is higher than the tree positions. Is the inventory without Z values and the point clound not normalized?')}
 
   inv <- inv |>
     cbind(X_gr = inv$X) |>
