@@ -1,5 +1,5 @@
 # load packages
-invisible(lapply(c('lidR','TreeLS', 'dbscan', 'igraph', 'foreach'), require, character.only = TRUE))
+invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.only = TRUE))
 
 # ------------------------------------------------------------------------------
 
@@ -71,7 +71,7 @@ add_geometry <- function(las, k = 10, n_cores = 1) {
 #' @examples
 #'
 #' # read example data
-#' file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' tls = lidR::readTLSLAS(file)
 #' tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 #'
@@ -270,8 +270,8 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
 # This is the main function
 # It requires a las point cloud of a forest patch and
-# a forest inventory as it can be calculated by TreeLS::tlsInventory.
-# Preferable geometric features should be computed for the point cloud prior 
+# a forest inventory as it can be calculated by CspStandSegmentation::find_base_coordinates_raster
+# Preferable geometric features should be computed for the point cloud prior
 # to the use of this function using 'add_geometry()'.
 
 #' Comparative Shortest Path with cost weighting tree segmentation
@@ -293,8 +293,8 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' cloud receive the TreeID from their parent voxel.
 #'
 #' @param las A lidR LAS S4 object.
-#' @param map A TreeLS map object, or a data.frame, including the columns
-#' X, Y, Z, TreeID, with X and Y depicting the location of the trees.
+#' @param map A data.frame, including the columns
+#' X, Y, Z, TreeID, with X and Y depicting the location of the trees. Can be generated using CspStandSegmentation::find_base_coordinates_raster
 #' @param Voxel_size The voxel size (3D resolution) for the routing graph to
 #' determine the nearest map location for every point in the point cloud.
 #' @param V_w verticality weight. Since trunks are vertical structures, routing
@@ -312,23 +312,21 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' the TreeID.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{comparative_shortest_path}}
+#'
+#' @value The input LAS object with the TreeID field added to the @data slot.
+#'
 #' @examples
 #'
 #' # read example data
-#' file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' tls = lidR::readTLSLAS(file)
 #'
-#' # normalize height
-#' tls <- TreeLS::tlsNormalize(tls)
-#'
 #' # Find tree positions as starting points for segmentation
-#' map <- TreeLS::treeMap(tls)
-#'
+#' map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 #' # segment trees
 #' segmented <- tls |>
-#'   lidR::filter_poi(Classification != 2) |>
-#'   add_geometry() |>
-#'   csp_cost_segmentation(map, 1)
+#' CspStandSegmentation::add_geometry() |>
+#'   CspStandSegmentation::csp_cost_segmentation(map, 1)
 #'
 #' lidR::plot(segmented, color = "TreeID")
 #'
@@ -415,8 +413,8 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
 # ------------------------------------------------------------------------------
 
-# Own function to calculate tree start points to get rid of TreeLS (since it is not on cran)
-
+# Function to calculate tree start points based on a raster density approach
+#'
 #' Find stem base position using a density raster approach
 #' @param las an element of lidR::LAS class
 #' @param zmin lower search boundary
@@ -426,30 +424,43 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 #' @param res raster resolution
 #' @param quantile raster density quantile to assign a tree region
 #' @param merge_radius search radius to merge base points
+#' @param normalized boolean flag if the point cloud is normalized
 #' @return %% ~Describe the value returned %% If it is a LIST, use %%
 #' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
 #' 'comp2'} %% ...
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #' @export find_base_coordinates_raster
-find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2){
-  slice <- las |>  filter_poi(Z > zmin & Z < zmax)
-  density <- grid_metrics(slice, length(Z), res = res)
-  height <- grid_metrics(slice, mean(Z), res = res)
+find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2, normalized = F){
+  if (!normalized) {
+    las <- las |>
+      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
+    dtm <- lidR::rasterize_terrain(las, 0.5, lidR::tin())
+    las <- las |> lidR::normalize_height(lidR::tin(), dtm = dtm)
+  }
+  slice <- las |>  lidR::filter_poi(Z > zmin & Z < zmax)
+  density <- lidR::grid_metrics(slice, length(Z), res = res)
+  height <- lidR::grid_metrics(slice, mean(Z), res = res)
   seed_rast <- terra::as.points(terra::rast(density > quantile(terra::values(density),probs = q, na.rm = T)))
   seed_rast <- terra::subset(seed_rast, seed_rast$layer == 1) |> as.data.frame(geom = 'XY')
   seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
   seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
-  z_vals <- terra::extract(height, seed_rast[,1:2])
-  z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
+  if(normalized){
+    z_vals <- terra::extract(height, seed_rast[,1:2])
+    if(any(is.na(z_vals))) z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
+  } else {
+    z_vals <- terra::extract(dtm, seed_rast[,1:2])[,2]
+    if(any(is.na(z_vals))) z_vals[is.na(z_vals)] <- mean(terra::values(dtm)) # catch NA's
+  }
+
   seed_rast <- cbind(seed_rast, z_vals)[,c(1,2,4,3)]
-  names(seed_rast) <- c('X','Y','Z','TreeID')
+  colnames(seed_rast) <- c('X','Y','Z','TreeID')
   return(seed_rast)
 }
 
 # ------------------------------------------------------------------------------
 
-# own function to calculate tree start points to get rid of TreeLS (since it is not on cran)
+# own function to calculate tree start points
 
 #' Find stem base position using a geometric feature filtering and clustering
 #' approach

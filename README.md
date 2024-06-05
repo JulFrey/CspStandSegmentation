@@ -10,7 +10,6 @@ If you are working on Windows operating systems, you will need to install Rtools
 ```R
 install.packages(c('devtools', 'Rcpp', 'lidR', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table'))
 
-devtools::install_github('tiagodc/TreeLS')
 devtools::install_github('https://github.com/JulFrey/CspStandSegmentation')
 
 # Check if it is working
@@ -20,7 +19,7 @@ example("csp_cost_segmentation")
 ```
 
 ## Usage
-The package is firmly based on the `TreeLS` and `lidR` packages and uses the las file structure. Smaller point clouds can be directly segmented using the ```csp_cost_segmentation``` function. This requires a set of tree positions (map) as starting points, which can be derived using the ```TreeLS::treeMap``` function, which might require parameter optimization. Theoretically, tree positions might also come from field measurements or manual assignments.:
+The package is firmly based on the `lidR` package and uses the las file structure. Smaller point clouds can be directly segmented using the ```csp_cost_segmentation``` function. This requires a set of tree positions (map) as starting points, which can be derived using the ```find_base_coordinates_raster``` function, which might require parameter optimization. Theoretically, tree positions might also come from field measurements or manual assignments.:
 
 ```R
 # read example data
@@ -31,13 +30,12 @@ tls = lidR::readTLSLAS(file)
 tls <- TreeLS::tlsNormalize(tls)
 
 # find tree positions as starting points for segmentation
-map <- TreeLS::treeMap(tls)
+map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 
 # segment trees
 segmented <- tls |>
-  lidR::filter_poi(Classification != 2) |>
-  add_geometry() |>
-  csp_cost_segmentation(map, 1)
+  CspStandSegmentation::add_geometry() |>
+  CspStandSegmentation::csp_cost_segmentation(map, 1)
 
 # show results
 lidR::plot(segmented, color = "TreeID")
