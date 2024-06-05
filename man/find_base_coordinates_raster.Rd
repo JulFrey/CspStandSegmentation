@@ -22,16 +22,24 @@ find_base_coordinates_raster(
 
 \item{zmax}{upper search boundary}
 
-\item{quantile}{raster density quantile to assign a tree region}
+\item{q}{quantile of raster density to assign a tree region}
 
-\item{merge_radius}{search radius to merge base points}
+\item{eps}{search radius to merge base points}
 }
 \value{
-
+data.frame with X, Y, Z and TreeID for stem base positions
 }
 \description{
 Find stem base position using a density raster approach
 }
+\examples{
+# read example data
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+tls = lidR::readTLSLAS(file)
+
+# Find tree positions
+map <- CspStandSegmentation::find_base_coordinates_raster(tls)
+}
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

@@ -17,14 +17,14 @@ csp_cost_segmentation(
 \arguments{
 \item{las}{A lidR LAS S4 object.}
 
-\item{map}{A TreeLS map object, or a data.frame including the columns
-X,Y,Z,TreeID, with X and Y depicting the location of the trees.}
+\item{map}{A data.frame, including the columns
+X, Y, Z, TreeID, with X and Y depicting the location of the trees. Can be generated using CspStandSegmentation::find_base_coordinates_raster}
 
 \item{Voxel_size}{The voxel size (3D resolution) for the routing graph to
-determine nearest map location for every point in the point cloud.}
+determine the nearest map location for every point in the point cloud.}
 
-\item{V_w}{verticality weight. Since trunks are vertical structures routing
-through voxels with high verticality can be rated 'cheaper'. should be a
+\item{V_w}{verticality weight. Since trunks are vertical structures, routing
+through voxels with high verticality can be rated 'cheaper.' should be a
 number between 0 and 1 with 0 meaning no benefit for more vertical
 structures.}
 
@@ -44,39 +44,34 @@ the TreeID.
 }
 \description{
 Segments single trees from forest point clouds based on tree positions
-(xy-coordinates) provided in the map-argument.
+(xyz-coordinates) provided in the map argument.
 }
 \details{
 The whole point cloud is voxelized in the given resolution and the center of
 gravity for the points inside is calculated as voxel coordinate. A graph is
-build which connects the voxel-coordinates based on db-scan algorithm. The
-distances between the voxel-coordinates is weighted based on geometric
+build, which connects the voxel coordinates based on a db-scan algorithm. The
+distances between the voxel coordinates is weighted based on geometric
 features computed for the points in the voxels. Distances along planar
 and/or vertical faces like stems are weighted shorter than distances through
-voxels with a high sphericity like leaves and clusters of twigs. This
-avoids, that small trees and regrowth takes over points from mature trees.
-For every voxel-center the weighted distance in the network is calculated to
-all tree-locations from the map-argument. The TreeID of the map argument
+voxels with high sphericity like leaves and clusters of twigs. This
+avoids small individuals spreading into the upper canopy.
+For every voxel center, the weighted distance in the network is calculated to
+all tree locations from the map argument. The TreeID of the map argument
 with the shortest distance is assigned to the voxel. All points in the point
-cloud get the TreeID from their parent voxel.
+cloud receive the TreeID from their parent voxel.
 }
 \examples{
 
 # read example data
-file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 tls = lidR::readTLSLAS(file)
 
-# normalize height
-tls <- TreeLS::tlsNormalize(tls)
-
-# find tree positions as starting point for segmentation
-map <- TreeLS::treeMap(tls)
-
+# Find tree positions as starting points for segmentation
+map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 # segment trees
 segmented <- tls |>
-  lidR::filter_poi(Classification != 2) |>
-  add_geometry() |>
-  csp_cost_segmentation(map, 1)
+CspStandSegmentation::add_geometry() |>
+  CspStandSegmentation::csp_cost_segmentation(map, 1)
 
 lidR::plot(segmented, color = "TreeID")
 
@@ -85,5 +80,5 @@ lidR::plot(segmented, color = "TreeID")
 \code{\link{comparative_shortest_path}}
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

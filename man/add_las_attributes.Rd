@@ -10,10 +10,10 @@ add_las_attributes(las)
 \item{las}{an element of lidR::LAS class}
 }
 \value{
-
+the las file with updated header
 }
 \description{
-The helper function adds all headings from las@data which are nor part of
+The helper function adds all headings from las@data which are not part of
 lidR:::LASATTRIBUTES to the las header using lidR::add_lasattribute. Only
 attributes that are included in the header got saved when using
 lidR::writeLAS, this is a convenient way to add them.
@@ -24,7 +24,6 @@ lidR::writeLAS, this is a convenient way to add them.
 \examples{
 
 LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
 
 las@data$noise <- runif(nrow(las@data))
 las@data$noiseZ <- las@data$var1 * las@data$Z
@@ -33,5 +32,5 @@ las <- add_las_attributes(las)
 
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

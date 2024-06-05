@@ -9,7 +9,7 @@ add_geometry(las, k = 10, n_cores = 1)
 \arguments{
 \item{las}{A LAS object (see lidR::LAS)}
 
-\item{k}{the k neerest neighbors to use for the eigenvalue calculation}
+\item{k}{the k nearest neighbors to use for the eigenvalue calculation}
 
 \item{n_cores}{The number of CPU cores to use}
 }
@@ -24,7 +24,7 @@ it adds geometric features like Curvature, Linearity, Planarity, Sphericity,
 Anisotrophy and Verticlity to the points itself.
 }
 \details{
-Details to the metrics can be found in: \ Hackel, T., Wegner, J.D. &
+Details of the metrics can be found in: \ Hackel, T., Wegner, J.D. &
 Schindler, K. (2016) Contour Detection in Unstructured 3D Point Clouds. In
 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 Presented at the 2016 IEEE Conference on Computer Vision and Pattern
@@ -44,5 +44,5 @@ summary(las@data)
 
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

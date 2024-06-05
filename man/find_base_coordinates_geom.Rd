@@ -30,16 +30,24 @@ considered a stem point}
 \item{min_planarity}{minimum planarity >0 & <1 for a point to be considered
 a stem point}
 
-\item{min_cluster_size}{minimum number of points in cluster to be considered
-a tree, if NULL median cluster size is choosen}
+\item{min_cluster_size}{minimum number of points in the cluster to be considered
+a tree, if NULL median cluster size is chosen}
 }
 \value{
-
+data.frame with X, Y, Z and TreeID for stem base positions
 }
 \description{
 Find stem base position using a geometric feature filtering and clustering
 approach
 }
+\examples{
+# read example data
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+tls = lidR::readTLSLAS(file)
+
+# Find tree positions
+map <- CspStandSegmentation::find_base_coordinates_geom(tls)
+}
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

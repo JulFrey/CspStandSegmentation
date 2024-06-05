@@ -19,7 +19,7 @@ comparative_shortest_path(
 \item{vox}{a LAS S4 element with XYZ voxel coordinates in the @data slot.}
 
 \item{adjacency_df}{a data.frame with voxel ids (row numbers) in the first
-column and a neighboring voxel id in the second column and the weight
+column and a neighboring voxel ID in the second column and the weight
 (distance) in the third column. Might be generated using the dbscan::frNN
 function (which requires reshaping the data).}
 
@@ -28,14 +28,14 @@ function (which requires reshaping the data).}
 \item{v_w, l_w, s_w}{weights for verticality, linearity spericity see
 \code{\link{csp_cost_segmentation}}}
 
-\item{N_cores}{Number of cpu cores for multi-threading}
+\item{N_cores}{Number of CPU cores for multi-threading}
 
 \item{Voxel_size}{Edge length used to create the voxels. This is only
 important to gain comparable distance weights on different voxel sizes.
 Should be greater than 0.}
 }
 \value{
-
+voxels with the TreeID in the @data slot
 }
 \description{
 The function performs a Dijkstra algorithm on a 3D voxel file to assign
@@ -45,5 +45,5 @@ every voxel to the closest seed point using the igraph package.
 \code{\link{csp_cost_segmentation}}
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

@@ -26,9 +26,6 @@ The package is firmly based on the `lidR` package and uses the las file structur
 file = system.file("extdata", "pine_plot.laz", package="TreeLS")
 tls = lidR::readTLSLAS(file)
 
-# normalize height
-tls <- TreeLS::tlsNormalize(tls)
-
 # find tree positions as starting points for segmentation
 map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 

@@ -12,15 +12,15 @@ add_voxel_coordinates(las, res)
 \item{res}{voxel ressolution in [m]}
 }
 \value{
-
+las file with additional voxel coordinates
 }
 \description{
 Adds the collums x_vox, y_vox and z_vox in the given ressolution to the las
-element. This is convinient if informations have been derived in voxel space
+element. This is convenient if information has been derived in voxel space
 and these should be attached to the original points.
 }
 \details{
-Voxel coordinates derived with this function are identical as those derived
+Voxel coordinates derived with this function are identical to those derived
 by lidR::voxelize.
 }
 \note{
@@ -37,5 +37,5 @@ lidR::plot(las, color = 'z_vox')
 
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }

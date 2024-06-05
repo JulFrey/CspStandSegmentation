@@ -5,7 +5,7 @@ Version: 0.1.1
 Author: Dr. Julian Frey
 Maintainer: Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
 Description: This package provides a function to segment trees from a stand scanned with terrestrial laser scanning. It strongly builds uppon the work of the lidR and the TreeLS packages.
-License: GPL-3
+License: GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Imports: Rcpp (>= 1.0.5), lidR, dbscan, igraph, foreach, parallel, doParallel,magrittr, data.table, sf, terra

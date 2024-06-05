@@ -56,15 +56,11 @@ add_geometry <- function(las, k = 10, n_cores = 1) {
 #' Calculate voxel mean values for all numeric attributes in the las@data table
 #' including the XYZ-coordinates.
 #'
-#' Returns a las element with XYZ-coordinates as the voxel center and
-#' X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
-#' all other numeric columns voxel mean values with their original name.
-#'
 #' @param las a lidR::LAS element
 #' @param res voxel resolution in meter
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return a las element with XYZ-coordinates as the voxel center and
+#' X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
+#' all other numeric columns voxel mean values with their original name.
 #' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{voxelize_points}}
@@ -114,9 +110,7 @@ voxelize_points_mean_attributes <- function(las, res) {
 #'
 #' @param las an element of lidR::LAS class
 #' @param res voxel ressolution in [m]
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return las file with additional voxel coordinates
 #' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
@@ -152,15 +146,12 @@ add_voxel_coordinates <- function(las, res) {
 #' lidR::writeLAS, this is a convenient way to add them.
 #'
 #' @param las an element of lidR::LAS class
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return the las file with updated header
 #' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
 #' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-#' las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
 #'
 #' las@data$noise <- runif(nrow(las@data))
 #' las@data$noiseZ <- las@data$var1 * las@data$Z
@@ -204,12 +195,9 @@ add_las_attributes <- function(las) {
 #' @param Voxel_size Edge length used to create the voxels. This is only
 #' important to gain comparable distance weights on different voxel sizes.
 #' Should be greater than 0.
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return voxels with the TreeID in the @data slot
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{csp_cost_segmentation}}
-#' @examples
 #'
 #' @export comparative_shortest_path
 comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size) {
@@ -312,8 +300,6 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' the TreeID.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{comparative_shortest_path}}
-#'
-#' @value The input LAS object with the TreeID field added to the @data slot.
 #'
 #' @examples
 #'
@@ -422,17 +408,20 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 #' @param q quantile of raster density to assign a tree region
 #' @param eps search radius to merge base points
 #' @param res raster resolution
-#' @param quantile raster density quantile to assign a tree region
-#' @param merge_radius search radius to merge base points
-#' @param normalized boolean flag if the point cloud is normalized
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return data.frame with X, Y, Z and TreeID for stem base positions
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
+#' # read example data
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' tls = lidR::readTLSLAS(file)
+#'
+#' # Find tree positions
+#' map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 #' @export find_base_coordinates_raster
-find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2, normalized = F){
-  if (!normalized) {
+find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2){
+  normalized <- T
+  if (!('Zref' %in% names(las@data))) {
+    normalized <- F
     las <- las |>
       lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
     dtm <- lidR::rasterize_terrain(las, 0.5, lidR::tin())
@@ -474,27 +463,36 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
 #' a stem point
 #' @param min_cluster_size minimum number of points in the cluster to be considered
 #' a tree, if NULL median cluster size is chosen
-#' @return %% ~Describe the value returned %% If it is a LIST, use %%
-#' \item{comp1 }{Description of 'comp1'} %% \item{comp2 }{Description of
-#' 'comp2'} %% ...
+#' @return data.frame with X, Y, Z and TreeID for stem base positions
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
+#' # read example data
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' tls = lidR::readTLSLAS(file)
+#'
+#' # Find tree positions
+#' map <- CspStandSegmentation::find_base_coordinates_geom(tls)
 #' @export find_base_coordinates_geom
 find_base_coordinates_geom <- function(las, zmin = 0.5, zmax = 2, res = 0.5, min_verticality = 0.9, min_planarity = 0.5, min_cluster_size = NULL) {
 
   Zref <- T # flag if a normalized point cloud was given
   if (!('Zref' %in% names(las@data))) {
     las <- las |>
-      classify_ground(csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
-    las <- las |>
-      normalize_height(grid_terrain(las, res = 0.25, algorithm = knnidw(), full_raster = TRUE))
+      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
+    dtm <- lidR::rasterize_terrain(las, 0.5, lidR::tin())
+    las <- las |> lidR::normalize_height(lidR::tin(), dtm = dtm)
     Zref <- F
   }
 
   slice <- las |>
     filter_poi(Classification != 2 & Z > zmin & Z < zmax)
   if (lidR::is.empty(slice)) {
-    stop('No points found in the specified zmin/xmax range. Is your point cloud normalized?')
+    stop('No points found in the specified zmin/xmax range.')
+  }
+
+  if(!Zref) {
+    slice <- slice |>
+      lidR::unnormalize_height()
   }
 
   slice <- slice |>
@@ -510,12 +508,15 @@ find_base_coordinates_geom <- function(las, zmin = 0.5, zmax = 2, res = 0.5, min
     slice@data$Cluster <- cluster$cluster
     slice <- slice |>
       filter_poi(Cluster %in% unique(cluster$cluster)[table(cluster$cluster) > median(table(cluster$cluster))])
+  } else {
+    cluster <- slice@data[,1:3] |>
+      dbscan::dbscan(res, 1)
+    slice@data$Cluster <- cluster$cluster
+    slice <- slice |>
+      filter_poi(Cluster %in% unique(cluster$cluster)[table(cluster$cluster) > min_cluster_size])
   }
   map <- aggregate(slice@data[,1:2], by = list(slice@data$Cluster), mean)
-  if (Zref) {
-    Z <- aggregate(slice@data[,3], by = list(slice@data$Cluster), min)
-  } else {
-    Z <- aggregate(slice@data[,'Zref'], by = list(slice@data$Cluster), min)
-  }
-  map <- data.frame(map[,2:3], Z = Z[,2], TreeID = Z[,1])
+  Z <- aggregate(slice@data[,3], by = list(slice@data$Cluster), min)
+
+  map <- data.frame(map[,2:3], Z = Z[,2], TreeID = 1:nrow(map))
 }

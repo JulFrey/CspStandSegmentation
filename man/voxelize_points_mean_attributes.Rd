@@ -12,16 +12,13 @@ voxelize_points_mean_attributes(las, res)
 \item{res}{voxel resolution in meter}
 }
 \value{
-
+a las element with XYZ-coordinates as the voxel center and
+X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
+all other numeric columns voxel mean values with their original name.
 }
 \description{
 Calculate voxel mean values for all numeric attributes in the las@data table
 including the XYZ-coordinates.
-}
-\details{
-Returns a las element with XYZ-coordinates as the voxel center and
-X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
-all other numeric collumns voxel mean values with their original name.
 }
 \note{
 %% ~~further notes~~
@@ -29,7 +26,7 @@ all other numeric collumns voxel mean values with their original name.
 \examples{
 
 # read example data
-file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 tls = lidR::readTLSLAS(file)
 tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 
@@ -38,5 +35,5 @@ tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 \code{\link{voxelize_points}}
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@wwd.uni-freiburg.de>
 }
