@@ -4,7 +4,7 @@
 \alias{add_geometry}
 \title{Add geometric features to a LAS object}
 \usage{
-add_geometry(las, k = 10, n_cores = 1)
+add_geometry(las, k = 10L, n_cores = 1)
 }
 \arguments{
 \item{las}{A LAS object (see lidR::LAS)}
@@ -29,9 +29,6 @@ Schindler, K. (2016) Contour Detection in Unstructured 3D Point Clouds. In
 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 Presented at the 2016 IEEE Conference on Computer Vision and Pattern
 Recognition (CVPR), IEEE, Las Vegas, NV, USA, pp. 1610–1618.
-}
-\note{
-%% ~~further notes~~
 }
 \examples{
 

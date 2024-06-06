@@ -35,7 +35,7 @@ important to gain comparable distance weights on different voxel sizes.
 Should be greater than 0.}
 }
 \value{
-voxels with the TreeID in the @data slot
+voxels with the TreeID in the data slot
 }
 \description{
 The function performs a Dijkstra algorithm on a 3D voxel file to assign

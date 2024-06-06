@@ -2,8 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{fast_unlist_dist}
 \alias{fast_unlist_dist}
-\title{helper function to unlist distances computed by dbscan::frNN %% ~~function
-to do ... ~~}
+\title{helper function to unlist distances computed by dbscan::frNN}
 \usage{
 fast_unlist_dist(list, l)
 }
@@ -12,21 +11,9 @@ fast_unlist_dist(list, l)
 
 \item{l}{the expected length of the result}
 }
-\value{
-
-}
 \description{
-%% ~~ If necessary, more details than the description above ~~
-}
-\note{
-%% ~~further notes~~
-}
-\references{
-%% ~put references to the literature/web site here ~
-}
-\seealso{
-%% ~~objects to See Also as \code{\link{help}}, ~~~
+extracts the distances from a nested list created by dbscan::frNN
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@iww.uni-freiburg.de>
 }

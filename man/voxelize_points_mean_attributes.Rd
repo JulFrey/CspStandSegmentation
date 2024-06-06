@@ -20,15 +20,12 @@ all other numeric columns voxel mean values with their original name.
 Calculate voxel mean values for all numeric attributes in the las@data table
 including the XYZ-coordinates.
 }
-\note{
-%% ~~further notes~~
-}
 \examples{
 
 # read example data
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
-tls = lidR::readTLSLAS(file)
-tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
+las = lidR::readTLSLAS(file)
+las |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 
 }
 \seealso{

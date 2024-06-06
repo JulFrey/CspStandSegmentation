@@ -23,13 +23,10 @@ and these should be attached to the original points.
 Voxel coordinates derived with this function are identical to those derived
 by lidR::voxelize.
 }
-\note{
-%% ~~further notes~~
-}
 \examples{
 
-LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+las = lidR::readTLSLAS(file)
 
 las <- add_voxel_coordinates(las,res = 1)
 

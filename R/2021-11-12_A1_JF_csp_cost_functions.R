@@ -23,7 +23,6 @@ invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.onl
 #' @param n_cores The number of CPU cores to use
 #' @return The function returns a single LAS object with the geometric features
 #' attached to it in the LAS@data section.
-#' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
@@ -35,7 +34,14 @@ invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.onl
 #'
 #'
 #' @export add_geometry
-add_geometry <- function(las, k = 10, n_cores = 1) {
+add_geometry <- function(las, k = 10L, n_cores = 1) {
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if(!(as.integer(k) == k & length(k) == 1 & k > 0 )) {
+    stop('k has to be one positive integer.')
+  }
   # necessary for raster_geometry
   # returns geometric features based on eigenvalues
   eigen <- eigen_decomposition(las, k, n_cores) # k neighbours, n cores
@@ -61,18 +67,24 @@ add_geometry <- function(las, k = 10, n_cores = 1) {
 #' @return a las element with XYZ-coordinates as the voxel center and
 #' X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
 #' all other numeric columns voxel mean values with their original name.
-#' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{voxelize_points}}
 #' @examples
 #'
 #' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
-#' tls = lidR::readTLSLAS(file)
-#' tls |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
+#' las = lidR::readTLSLAS(file)
+#' las |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
 #'
 #' @export voxelize_points_mean_attributes
 voxelize_points_mean_attributes <- function(las, res) {
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if(!(is.numeric(res) & length(res) < 3 & res > 0 )) {
+    stop('res has to be numeric and positive.')
+  }
 
   # Checking resolution input validity
   if (length(res) == 1L) {
@@ -111,12 +123,11 @@ voxelize_points_mean_attributes <- function(las, res) {
 #' @param las an element of lidR::LAS class
 #' @param res voxel ressolution in [m]
 #' @return las file with additional voxel coordinates
-#' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
-#' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-#' las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' las = lidR::readTLSLAS(file)
 #'
 #' las <- add_voxel_coordinates(las,res = 1)
 #'
@@ -124,6 +135,13 @@ voxelize_points_mean_attributes <- function(las, res) {
 #'
 #' @export add_voxel_coordinates
 add_voxel_coordinates <- function(las, res) {
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if(!(is.numeric(res) & length(res) < 3 & res > 0 )) {
+    stop('res has to be numeric and positive.')
+  }
 
   # create voxel coordinates
   vox <- lidR:::group_grid_3d(las@data$X, las@data$Y, las@data$Z, c(res, res), c(0, 0, 0.5*res))
@@ -147,11 +165,11 @@ add_voxel_coordinates <- function(las, res) {
 #'
 #' @param las an element of lidR::LAS class
 #' @return the las file with updated header
-#' @note %% ~~further notes~~
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
 #'
-#' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
+#' file <- system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' las <- lidR::readTLSLAS(file)
 #'
 #' las@data$noise <- runif(nrow(las@data))
 #' las@data$noiseZ <- las@data$var1 * las@data$Z
@@ -160,6 +178,10 @@ add_voxel_coordinates <- function(las, res) {
 #'
 #' @export add_las_attributes
 add_las_attributes <- function(las) {
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
 
   # Add attributes from data.table permanently to attributes
   names <- names(las@data)
@@ -195,7 +217,7 @@ add_las_attributes <- function(las) {
 #' @param Voxel_size Edge length used to create the voxels. This is only
 #' important to gain comparable distance weights on different voxel sizes.
 #' Should be greater than 0.
-#' @return voxels with the TreeID in the @data slot
+#' @return voxels with the TreeID in the data slot
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{csp_cost_segmentation}}
 #'
@@ -305,12 +327,12 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #'
 #' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
-#' tls = lidR::readTLSLAS(file)
+#' las = lidR::readTLSLAS(file)
 #'
 #' # Find tree positions as starting points for segmentation
-#' map <- CspStandSegmentation::find_base_coordinates_raster(tls)
+#' map <- CspStandSegmentation::find_base_coordinates_raster(las)
 #' # segment trees
-#' segmented <- tls |>
+#' segmented <- las |>
 #' CspStandSegmentation::add_geometry() |>
 #'   CspStandSegmentation::csp_cost_segmentation(map, 1)
 #'
@@ -318,6 +340,39 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #'
 #' @export csp_cost_segmentation
 csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1) {
+
+  # if map is a LAS object, extract tree positions
+  if (lidR::is(map,"LAS")) {
+    # check if TreeID available
+    if (!('TreeID' %in% names(map@data))) {
+      stop('TreeID has to be a column in the map data.frame.')
+    }
+    inv <- map@data[map@data$TreePosition,]
+    if (nrow(inv) == 0) {
+      inv <- aggregate(map@data[map@data$Z > 1 & map@data$Z < 1.5,], by = list(map@data$TreeID[map@data$Z > 1 & map@data$Z < 1.5]), median)
+    }
+  }
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if (!(is.data.frame(map) & all(c('X', 'Y', 'Z', 'TreeID') %in% names(map)))) {
+    stop('map has to be a data.frame with collumn names X,Y,Z,TreeID.')
+  }
+  if(!all(is.numeric(c(Voxel_size, V_w, L_w, S_w, N_cores)))) {
+    stop('Voxel_size, V_w, L_w, S_w and N_cores have to be numeric.')
+  }
+
+  if (Voxel_size <= 0) {
+    stop('Voxel_size has to be greater than 0.')
+  }
+  if(lidR::is.empty(las)) {
+    stop('No points in the point cloud.')
+  }
+  if(nrow(map) == 0) {
+    stop('No tree positions in the map.')
+  }
+
   # check if TreeID already exists
   if ('TreeID' %in% names(las@data)) {
     warning("'las' already contains TreeIDs', which will be overwritten.")
@@ -336,14 +391,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   # Voxelize las with mean attributes
   vox <- voxelize_points_mean_attributes(las, res = Voxel_size)
 
-  if (typeof(map) == 'S4') {
-    inv <- map@data[map@data$TreePosition,]
-    if (nrow(inv) == 0) {
-      inv <- aggregate(map@data[map@data$Z > 1 & map@data$Z < 1.5,], by = list(map@data$TreeID[map@data$Z > 1 & map@data$Z < 1.5]), median)
-    }
-  } else {
-    inv <- map
-  }
+  inv <- map
 
   # Add seeds
   vox <- vox |>
@@ -419,6 +467,13 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 #' map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 #' @export find_base_coordinates_raster
 find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q = 0.975, eps = 0.2){
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if(!all(is.numeric(c(zmin, zmax, res, q, eps)))) {
+    stop('zmin, zmax, res, q and eps have to be numeric.')
+  }
   normalized <- T
   if (!('Zref' %in% names(las@data))) {
     normalized <- F
@@ -474,7 +529,13 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
 #' map <- CspStandSegmentation::find_base_coordinates_geom(tls)
 #' @export find_base_coordinates_geom
 find_base_coordinates_geom <- function(las, zmin = 0.5, zmax = 2, res = 0.5, min_verticality = 0.9, min_planarity = 0.5, min_cluster_size = NULL) {
-
+  # check if inputs of the right type
+  if (!lidR::is(las,"LAS")) {
+    stop('las has to be a LAS object.')
+  }
+  if(!all(is.numeric(c(zmin, zmax, res, min_verticality, min_planarity)))) {
+    stop('zmin, zmax, res, min_verticality and min_planarity have to be numeric.')
+  }
   Zref <- T # flag if a normalized point cloud was given
   if (!('Zref' %in% names(las@data))) {
     las <- las |>

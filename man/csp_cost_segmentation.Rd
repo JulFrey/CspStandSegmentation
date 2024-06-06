@@ -64,12 +64,12 @@ cloud receive the TreeID from their parent voxel.
 
 # read example data
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
-tls = lidR::readTLSLAS(file)
+las = lidR::readTLSLAS(file)
 
 # Find tree positions as starting points for segmentation
-map <- CspStandSegmentation::find_base_coordinates_raster(tls)
+map <- CspStandSegmentation::find_base_coordinates_raster(las)
 # segment trees
-segmented <- tls |>
+segmented <- las |>
 CspStandSegmentation::add_geometry() |>
   CspStandSegmentation::csp_cost_segmentation(map, 1)
 

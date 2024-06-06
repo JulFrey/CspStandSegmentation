@@ -22,18 +22,9 @@ planarity, linerity, verticality etc. in the add_geometry function
 C++ helper function to compute eigenvalues for geometric feature
 calculation.
 }
-\details{
-%% ~~ If necessary, more details than the description above ~~
-}
-\note{
-%% ~~further notes~~
-}
-\references{
-%% ~put references to the literature/web site here ~
-}
 \seealso{
 \link{add_geometry}
 }
 \author{
-Dr. Julian Frey <julian.frey@iww.uni-freiburg.de>
+Julian Frey <julian.frey@iww.uni-freiburg.de>
 }

@@ -18,12 +18,10 @@ lidR:::LASATTRIBUTES to the las header using lidR::add_lasattribute. Only
 attributes that are included in the header got saved when using
 lidR::writeLAS, this is a convenient way to add them.
 }
-\note{
-%% ~~further notes~~
-}
 \examples{
 
-LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
+file <- system.file("extdata", "beech.las", package="CspStandSegmentation")
+las <- lidR::readTLSLAS(file)
 
 las@data$noise <- runif(nrow(las@data))
 las@data$noiseZ <- las@data$var1 * las@data$Z
