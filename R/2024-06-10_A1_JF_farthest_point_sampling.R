@@ -17,6 +17,26 @@ p_dist <- function(p1, p2){
   sqrt(sum((p1 - p2)^2))
 }
 
+#' Point distance function
+#'
+#' calculates euclidean distances for n dimensions between a matrix of points and a single point
+#'
+#' @param mat point 1
+#' @param p point 2
+#'
+#' @return the distance between the two points
+#' @export p_dist
+#'
+#' @examples
+#' dist(c(0,0), c(3,4))
+p_dist2 <- function(mat, p){
+  mat2 <- mat
+  for(c in 1:ncol(mat)){
+    mat2[,c] <- (mat[,c] - p[c])^2
+  }
+  return(sqrt(.rowSums(mat2, nrow(mat2), ncol(mat2))))
+}
+
 #' Farthest Distance Sampling (Farthest Point Sampling)
 #'
 #' This function selects n points from a matrix of points such that the minimum distance between any two points is maximized.
@@ -89,6 +109,7 @@ fds <- function(mat, n, ret = "idx", scale = F){
 
   # select the first point randomly
   idx <- sample(1:nrow(mat), 1)
+
   # calculate a vector of distances from the first point
   dists <- apply(mat, 1, function(x) p_dist(mat[idx,], x))
 
@@ -97,7 +118,8 @@ fds <- function(mat, n, ret = "idx", scale = F){
     # select the next point
     idx <- c(idx, which.max(dists))
     # calculate the distances from the new point
-    dists <- pmin(dists, apply(mat, 1, function(x) p_dist(mat[idx[i],], x)))
+    dists2 <- p_dist2(mat, mat[idx[i],])
+    dists <- pmin(dists, dists2)
   }
 
   # return the selected points
@@ -112,4 +134,5 @@ fds <- function(mat, n, ret = "idx", scale = F){
     return(idx)
   }
 }
+
 

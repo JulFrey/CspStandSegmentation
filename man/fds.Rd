@@ -7,7 +7,7 @@
 fds(mat, n, ret = "idx", scale = F)
 }
 \arguments{
-\item{mat}{a matrix of points with one row for each point and one collumn for each dimension}
+\item{mat}{a matrix of points with one row for each point and one column for each dimension, can also be a las object then only XYZ will be used}
 
 \item{n}{the number of points to select, or if <1 the proportion of points to select}
 
