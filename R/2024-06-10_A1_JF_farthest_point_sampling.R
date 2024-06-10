@@ -1,4 +1,4 @@
-#' Distance function
+#' Point distance function
 #'
 #' calculates eucleadian distances for n dimensions
 #'
@@ -6,11 +6,11 @@
 #' @param p2 point 2
 #'
 #' @return the distance between the two points
-#' @export dist
+#' @export p_dist
 #'
 #' @examples
 #' dist(c(0,0), c(3,4))
-dist <- function(p1, p2){
+p_dist <- function(p1, p2){
   if(length(p1) != length(p2)){
     stop("p1 and p2 must have the same length")
   }
@@ -69,14 +69,14 @@ fds <- function(mat, n, ret = "idx", scale = F){
   # select the first point randomly
   idx <- sample(1:nrow(mat), 1)
   # calculate a vector of distances from the first point
-  dists <- apply(mat, 1, function(x) dist(mat[idx,], x))
+  dists <- apply(mat, 1, function(x) p_dist(mat[idx,], x))
 
   # select all further points in a loop
   for(i in 2:n){
     # select the next point
     idx <- c(idx, which.max(dists))
     # calculate the distances from the new point
-    dists <- pmin(dists, apply(mat, 1, function(x) dist(mat[idx[i],], x)))
+    dists <- pmin(dists, apply(mat, 1, function(x) p_dist(mat[idx[i],], x)))
   }
 
   # return the selected points
