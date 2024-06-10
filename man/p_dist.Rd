@@ -18,5 +18,5 @@ the distance between the two points
 calculates eucleadian distances for n dimensions
 }
 \examples{
-dist(c(0,0), c(3,4))
+p_dist(c(0,0), c(3,4))
 }
