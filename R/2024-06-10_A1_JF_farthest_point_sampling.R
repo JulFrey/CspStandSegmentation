@@ -22,7 +22,7 @@ p_dist <- function(p1, p2){
 #' This function selects n points from a matrix of points such that the minimum distance between any two points is maximized.
 #' This version is memory efficient and can handle large matrices.
 #'
-#' @param mat a matrix of points with one row for each point and one collumn for each dimension
+#' @param mat a matrix of points with one row for each point and one column for each dimension, can also be a las object then only XYZ will be used
 #' @param n the number of points to select, or if <1 the proportion of points to select
 #' @param ret the type of output to return. Options are "idx" (default) to return the indices of the selected points, "mat" to return the selected points.
 #' @param scale logical. If TRUE, the dimensions are scaled to have a mean of 0 and a standard deviation of 1 before calculating distances.
@@ -39,18 +39,39 @@ p_dist <- function(p1, p2){
 #' }
 fds <- function(mat, n, ret = "idx", scale = F){
   # check the inputs
+  was_las <- FALSE
+  if(!is.matrix(mat)){
+    if(class(mat) == "LAS"){
+      was_las <- TRUE
+      las <- mat
+      mat <- as.matrix(las@data[,c("X", "Y", "Z")])
+    } else {
+      stop("mat must be a matrix or a LAS object")
+    }
+  }
+
   if(ret != "idx" & ret != "mat"){
     stop("ret must be 'idx' or 'mat'")
   }
   if(n >= nrow(mat)){
     warning("n is greater or equal than the number of points in mat. Returning all points.")
     if(ret == "mat"){
+      if(was_las){
+        return(las)
+      }
       return(mat)
     }
     return(1:nrow(mat))
   }
   if(n == 1){
-    return(sample(1:nrow(mat), 1))
+    if(was_las){
+      return(las[sample(1:nrow(mat), 1),])
+    }
+    if(ret == "mat"){
+      return(mat[sample(1:nrow(mat), 1),])
+    } else {
+      return(sample(1:nrow(mat), 1))
+    }
   }
   if(n < 0){
     stop("n must be greater than 0.")
@@ -81,7 +102,12 @@ fds <- function(mat, n, ret = "idx", scale = F){
 
   # return the selected points
   if(ret == "mat"){
-    return(mat[idx,])
+    if(was_las){
+      las@data <- las@data[idx,]
+      return(las)
+    } else {
+      return(mat[idx,])
+    }
   } else {
     return(idx)
   }
