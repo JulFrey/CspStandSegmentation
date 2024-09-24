@@ -23,7 +23,7 @@ The package is firmly based on the `lidR` package and uses the las file structur
 
 ```R
 # read example data
-file = system.file("extdata", "pine_plot.laz", package="TreeLS")
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 tls = lidR::readTLSLAS(file)
 
 # find tree positions as starting points for segmentation
@@ -31,8 +31,8 @@ map <- CspStandSegmentation::find_base_coordinates_raster(tls)
 
 # segment trees
 segmented <- tls |>
-  CspStandSegmentation::add_geometry() |>
-  CspStandSegmentation::csp_cost_segmentation(map, 1)
+  CspStandSegmentation::add_geometry(n_cores = parallel::detectCores()/2) |>
+  CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
 
 # show results
 lidR::plot(segmented, color = "TreeID")
@@ -48,7 +48,7 @@ library(CspStandSegmentation)
 # parameters
 las_file <- "your_file.laz"
 base_dir <- "~/your_project_folder/" # with trailing /
-cores <- 20 # number od cpu cores 
+cores <- parallel::detectCores()/2 # number od cpu cores 
 res <- 0.3 # voxel resolution for segmentation
 chunk_size <- 50 # size of one tile in m excl. buffer
 chunk_buffer <- 10 # buffer around tile in m
@@ -80,6 +80,7 @@ segmented <- catalog_apply(uls, function(cluster) {
   # only use seed positions within the tile+buffer and save the tile bbox to only return tree pos within the tile (excl. buffer)
   inv <- map
   invb <- map
+  # the bbox includes the buffer, the bbbox excludes the buffer 
   bbox <- cluster@bbox
   bbbox <- cluster@bbbox
   inv <- inv[inv$X < bbox[1,2] & inv$X > bbox[1,1] & inv$Y < bbox[2,2] & inv$Y > bbox[2,1],]
@@ -88,8 +89,8 @@ segmented <- catalog_apply(uls, function(cluster) {
   if (is.empty(las) ) return(NULL) # stop if empty
   
   # Assign all points to trees
-  #las <- las |> add_geometry(n_cores = cores) |> csp_cost_segmentation(invb,seg_res, N_cores = cores, V_w = 0.5)
-  las <- las |> csp_cost_segmentation(map,res, N_cores = cores, V_w = 0.5)
+  las <- las |> add_geometry(n_cores = cores) |> csp_cost_segmentation(invb,seg_res, N_cores = cores, V_w = 0.5)
+  # las <- las |> csp_cost_segmentation(map,res, N_cores = cores, V_w = 0.5) # this is a faster version which does not make use of the geometric feature weights
   if (is.empty(las)) return(NULL)
   
   las <- las |>  filter_poi(TreeID %in% c(0,inv$TreeID)) # only return trees within the tile
