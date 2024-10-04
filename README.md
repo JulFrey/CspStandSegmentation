@@ -89,7 +89,7 @@ segmented <- catalog_apply(uls, function(cluster) {
   if (is.empty(las) ) return(NULL) # stop if empty
   
   # Assign all points to trees
-  las <- las |> add_geometry(n_cores = cores) |> csp_cost_segmentation(invb,seg_res, N_cores = cores, V_w = 0.5)
+  las <- las |> add_geometry(n_cores = cores) |> csp_cost_segmentation(invb,res, N_cores = cores, V_w = 0.5)
   # las <- las |> csp_cost_segmentation(map,res, N_cores = cores, V_w = 0.5) # this is a faster version which does not make use of the geometric feature weights
   if (is.empty(las)) return(NULL)
   
