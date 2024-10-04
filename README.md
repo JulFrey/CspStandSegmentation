@@ -113,7 +113,7 @@ segmented <- catalog_apply(uls, function(cluster) {
 
 # merge segmented trees
 segmented <- readTLSLAScatalog(paste0(base_dir,"segmentation_tiles/"), select = "xyz0", chunk_buffer = 0)
-opt_merge(segmented) <- True
+opt_merge(segmented) <- TRUE
 opt_output_files(segmented) <- paste0("")
 segmented <- catalog_apply(segmented, function(cluster) {
   las <- suppressWarnings(readLAS(cluster)) # read files
