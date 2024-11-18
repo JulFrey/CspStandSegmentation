@@ -1,6 +1,6 @@
 #' Point distance function
 #'
-#' calculates eucleadian distances for n dimensions
+#' calculates euclidean distances for n dimensions
 #'
 #' @param p1 point 1
 #' @param p2 point 2
