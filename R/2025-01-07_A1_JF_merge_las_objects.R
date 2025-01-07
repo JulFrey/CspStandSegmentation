@@ -50,5 +50,16 @@ las_merge <- function(..., oci = TRUE, fill = FALSE){
 
   # quantize the data
   las_1 <- las_1 |> lidR::las_quantize() |> lidR::las_update()
+
+  # remove extra byte arguments from header which do not exist any longer
+  exbytes_header <- names(las_1@header@VLR$Extra_Bytes$`Extra Bytes Description`)
+  exbytes_data <- names(las_1@data)
+  exbytes <- setdiff(exbytes_header, exbytes_data)
+  if(length(exbytes) > 0){
+    for(i in exbytes){
+      las_1@header@VLR$Extra_Bytes$`Extra Bytes Description`[[i]] <- NULL
+    }
+  }
+
   return(las_1)
 }
