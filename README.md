@@ -1,6 +1,11 @@
 ## CspStandSegmentation is an R-package for the segmentation of single trees from forest point clouds scanned with terrestrial, mobile or unmanned LiDAR systems <img src="https://github.com/JulFrey/CspStandSegmentation/blob/main/inst/figures/csp_logo.png" align="right" width = 300/>
 
-Author: Julian Frey, University of Freiburg, Chair of Forest Growth and Dendroecology
+Authors: Julian Frey and Zoe Schindler, University of Freiburg, Chair of Forest Growth and Dendroecology
+
+
+[![DOI](https://zenodo.org/badge/546133784.svg)](https://doi.org/10.5281/zenodo.14204459)
+
+
 
 
 ## Installation
