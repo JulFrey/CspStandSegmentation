@@ -15,7 +15,7 @@ p_dist(p1, p2)
 the distance between the two points
 }
 \description{
-calculates eucleadian distances for n dimensions
+calculates euclidean distances for n dimensions
 }
 \examples{
 p_dist(c(0,0), c(3,4))
