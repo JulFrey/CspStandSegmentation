@@ -49,5 +49,5 @@ segmented <- tls |>
 lidR::plot(segmented, color = "TreeID")
 
 # perform inventory
-inventory <- forest_inventory(segmented)
+inventory <- CspStandSegmentation::forest_inventory(segmented)
 }
