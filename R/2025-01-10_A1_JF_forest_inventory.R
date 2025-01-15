@@ -123,7 +123,7 @@ ransacCircleFit <- function(data, n_iterations = 1000, distance_threshold = 0.01
 #'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
 #'
 #' # show results
-#' lidR::plot(segmented, color = "TreeID")
+#' \dontrun{lidR::plot(segmented, color = "TreeID")}
 #'
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented)
@@ -190,7 +190,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
         }
       }
 
-      circle <- ransacCircleFit(planes@data[, c("X", "Y")], n_iterations = 100)
+      circle <- ransacCircleFit(planes@data[, c("X", "Y")], n_iterations = 500)
       # circle
       # plot(Y ~ X, data = tree@data, col = "black", pch = ".", asp = 1)
       # points(planes@data$X, planes@data$Y, col = "cornflowerblue", pch = 20)
@@ -247,6 +247,11 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
   }
 
+  # Calculate the mean tree height above ground for dbh visualization
+  dbh_slice <- lidR::add_attribute(dbh_slice, dbh_slice@data$Z - dbh_slice@data$Znorm, "Zdiff")
+  tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID), FUN = mean)
+  names(tree_pos_height) <- c("TreeID", "Z")
+
   # calculate the tree heights by aggregating the original las file
   heights <- aggregate(tls@data$Z, by = list(tls@data$TreeID), FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
@@ -274,6 +279,31 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
   # merge the results with the heights
   dbh_results <- merge(dbh_results, heights, by = "TreeID")
   dbh_results <- merge(dbh_results, cpa, by = "TreeID")
+  dbh_results <- merge(dbh_results, tree_pos_height, by = "TreeID")
   return(dbh_results)
+}
+
+#' Function to plot the inventory results into a lidR 3d plot of the point cloud
+#' @param plot lidR 3d plot
+#' @param inventory data.frame with the inventory results
+#' @param cex numeric size of the labels
+#' @param label_col character color of the labels
+#' @param col color of the spheres
+#' @return the plot with the inventory results
+#' @examples
+#' \dontrun{
+#' x <- lidR::plot(segmented, color = "TreeID")
+#' plot_inventory(x, inventory)
+#' }
+plot_inventory <- function(plot, inventory,col = NA,cex = 1.5, label_col = "white"){
+  if(is.na(col)){
+    col <- rainbow(max(inventory$TreeID) - min(inventory$TreeID))
+  }
+  # generate a circle for evry dbh estimation
+  rgl::spheres3d(inventory$X - plot[1], inventory$Y - plot[2], inventory$Z+1.3, radius = inventory$DBH/2,col = col)
+  for(i in 1:nrow(inventory)){
+    rgl::texts3d(inventory$X[i] - plot[1] + inventory$DBH[i], inventory$Y[i] - plot[2] + inventory$DBH[i], inventory$Z[i] + 1.3, text = inventory$TreeID[i], adj = c(0.5,0.5), col = label_col, cex = cex, family = "mono", font = 2)
+    rgl::lines3d(c(inventory$X[i] - plot[1], inventory$X[i] - plot[1]), c(inventory$Y[i] - plot[2], inventory$Y[i] - plot[2]), c(inventory$Z[i], inventory$Height[i]), col = ifelse(length(col) >= i, col[i], col), lwd = 2)
+  }
 }
 
