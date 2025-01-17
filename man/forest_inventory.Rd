@@ -46,7 +46,7 @@ segmented <- tls |>
   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
 
 # show results
-lidR::plot(segmented, color = "TreeID")
+\dontrun{lidR::plot(segmented, color = "TreeID")}
 
 # perform inventory
 inventory <- CspStandSegmentation::forest_inventory(segmented)
