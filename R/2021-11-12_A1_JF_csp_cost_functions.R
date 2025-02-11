@@ -483,12 +483,13 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
     las <- las |> lidR::normalize_height(lidR::tin(), dtm = dtm)
   }
   slice <- las |>  lidR::filter_poi(Z > zmin & Z < zmax)
-  density <- lidR::grid_metrics(slice, length(Z), res = res)
-  height <- lidR::grid_metrics(slice, mean(Z), res = res)
-  seed_rast <- terra::as.points(terra::rast(density > quantile(terra::values(density),probs = q, na.rm = T)))
-  seed_rast <- terra::subset(seed_rast, seed_rast$layer == 1) |> as.data.frame(geom = 'XY')
-  seed_rast <- seed_rast |>  cbind(data.frame(cluster = dbscan::dbscan(seed_rast[,c("x","y")], eps = eps, minPts = 1)$cluster) )
-  seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[,3:5]
+  density <- lidR::pixel_metrics(slice, length(Z), res = res)
+  height <- lidR::pixel_metrics(slice, mean(Z), res = res)
+  q_dens <- quantile(terra::values(density), probs = q, na.rm = T)
+  seed_rast <- terra::as.points(density > q_dens)
+  seed_rast <- as.data.frame(terra::subset(seed_rast, seed_rast$V1 == 1), geom = "XY")
+  seed_rast <- cbind(seed_rast, data.frame(cluster = dbscan::dbscan(seed_rast[,c("x", "y")], eps = eps, minPts = 1)$cluster))
+  seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[, 3:5]
   if(normalized){
     z_vals <- terra::extract(height, seed_rast[,1:2])
     if(any(is.na(z_vals))) z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
