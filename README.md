@@ -41,6 +41,11 @@ segmented <- tls |>
 
 # show results
 lidR::plot(segmented, color = "TreeID")
+
+# create inventory
+inventory <- CspStandSegmentation::forest_inventory(segmented)
+head(inventory)
+lidR::plot(segmented, color = "TreeID") |> CspStandSegmentation::plot_inventory(inventory)
 ```
 
 For large areas, the package can be used within the lidR LAScatalogue engine to cope with memory limitations. The following example shows how this can be done. The single tiles of segmented trees are saved in a folder in this example and merged afterwards. 
