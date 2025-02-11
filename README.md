@@ -13,7 +13,7 @@ Authors: Julian Frey and Zoe Schindler, University of Freiburg, Chair of Forest 
 If you are working on Windows operating systems, you will need to install Rtools prior to installation: https://cran.r-project.org/bin/windows/Rtools/>. On Mac, Xcode is required. 
 
 ```R
-install.packages(c('devtools', 'Rcpp', 'lidR', 'dbscan', 'igraph', 'foreach', 'parallel', 'doParallel','magrittr', 'data.table'))
+install.packages(c('devtools', 'Rcpp', 'lidR', 'dbscan', 'igraph', 'foreach', 'doParallel','magrittr', 'data.table'))
 
 devtools::install_github('https://github.com/JulFrey/CspStandSegmentation')
 
