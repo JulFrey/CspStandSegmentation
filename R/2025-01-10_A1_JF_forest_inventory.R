@@ -156,8 +156,15 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
   t1 <- Sys.time()
   dbh_results <- data.frame(TreeID = numeric(), X = numeric(), Y = numeric(), DBH = numeric(), quality_flag = numeric())
-  for(t in unique(dbh_slice$TreeID)){
-    Sys.sleep(0.1)
+
+  IDs <- unique(tls$TreeID)
+
+  # initialize progress bar
+  print("Fit a DBH value to every tree:")
+  pb = txtProgressBar(min = 0, max = length(IDs), initial = 0, style = 3)
+  i <- 1
+
+  for(t in IDs){
     # get the tree points
     tree <- dbh_slice |> lidR::filter_poi(TreeID == t)
     if(nrow(tree) < 3){
@@ -219,7 +226,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     if((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)){
       dbh <- mean(t_seq$r, na.rm = TRUE) * 2
       # check if dbh is within limits
-      if(dbh > max_dbh | dbh < 0){
+      if(is.na(dbh) | dbh > max_dbh | dbh < 0){
         dbh_results <- rbind(dbh_results, data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y), DBH = NA, quality_flag = 2))
       } else {
         dbh_results <- rbind(dbh_results, data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y), DBH = dbh, quality_flag = 2))
@@ -239,13 +246,17 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
     dbh <- r * 2
     # if the DBH is bigger than the maximum allowed or negative, the DBH is not estimated
-    if(dbh > max_dbh | dbh < 0){
+    if(is.na(dbh) | dbh > max_dbh | dbh < 0){
       dbh_results <- rbind(dbh_results, data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y),  DBH = NA, quality_flag = 3))
     } else {
       dbh_results <- rbind(dbh_results, data.frame(TreeID = t, X = x, Y = y,  DBH = dbh, quality_flag = 4))
     }
-
+    # update progress bar
+    setTxtProgressBar(pb, i)
+    i <- i + 1
   }
+  # close progress bar
+  close(pb)
 
   # Calculate the mean tree height above ground for dbh visualization
   dbh_slice <- lidR::add_attribute(dbh_slice, dbh_slice@data$Z - dbh_slice@data$Znorm, "Zdiff")
@@ -255,6 +266,8 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
   # calculate the tree heights by aggregating the original las file
   heights <- aggregate(tls@data$Z, by = list(tls@data$TreeID), FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
+
+  print("Tree heights calculated.")
 
   # add convex hull area to the results
   convhull_area <- function(xy){
@@ -266,14 +279,22 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     return(abs(0.5 * sum(xy[ch,1] * c(tail(xy[ch,2], -1), head(xy[ch,2], 1)) - c(tail(xy[ch,1], -1), head(xy[ch,1], 1)) * xy[ch,2])))
   }
 
+  # initialize progress bar
+  print("Calculating convex hull areas.")
+  pb = txtProgressBar(min = 0, max = length(IDs), initial = 0, style = 3)
+  i <- 1
+
   cpa <- data.frame(TreeID = numeric(), ConvexHullArea = numeric())
-  for(t in unique(tls$TreeID)){
+  for(t in IDs){
     tree <- tls |> lidR::filter_poi(TreeID == t & Znorm > 0.5)
     if(nrow(tree) < 3){
       cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = NA))
       next
     }
     cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = convhull_area(tree@data[, c("X", "Y")])))
+    # update progress bar
+    setTxtProgressBar(pb, i)
+    i <- i + 1
   }
 
   # merge the results with the heights
