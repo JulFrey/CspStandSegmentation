@@ -9,7 +9,7 @@ Encoding: UTF-8
 LazyData: true
 Imports: Rcpp (>= 1.0.5), lidR, dbscan, igraph, foreach, parallel, doParallel,magrittr, data.table, sf, terra, RCSF, conicfit
 LinkingTo: Rcpp, RcppArmadillo, lidR, BH
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

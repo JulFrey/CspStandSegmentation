@@ -5,17 +5,16 @@
 \title{Function to perform a forest inventory based on a segmented las object (needs to contain TreeID)}
 \usage{
 forest_inventory(
-  las,
+  tls,
   slice_min = 0.3,
   slice_max = 4,
   increment = 0.2,
   width = 0.1,
-  max_dbh = 1
+  max_dbh = 1,
+  n_cores = max(c(1, parallel::detectCores()/2 - 1))
 )
 }
 \arguments{
-\item{las}{lidR las object with the segmented trees}
-
 \item{slice_min}{the minimum height of a slice for stems to estimate the taper curve}
 
 \item{slice_max}{the maximum height of a slice for stems to estimate the taper curve}
@@ -25,6 +24,10 @@ forest_inventory(
 \item{width}{the width of the slices}
 
 \item{max_dbh}{the maximum DBH allowed}
+
+\item{n_cores}{number of cores to use}
+
+\item{las}{lidR las object with the segmented trees}
 }
 \value{
 a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea

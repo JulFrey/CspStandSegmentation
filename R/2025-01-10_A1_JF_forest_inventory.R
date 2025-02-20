@@ -106,6 +106,7 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' @param increment the increment of the slices
 #' @param width the width of the slices
 #' @param max_dbh the maximum DBH allowed
+#' @param n_cores number of cores to use
 #'
 #' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
@@ -127,204 +128,283 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #'
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented)
-forest_inventory <- function(tls, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1,parallel::detectCores()/2 - 1))){
-  # check if the TreeID attribute is present
-
-  if(!"TreeID" %in% names(tls)){
+forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1))) {
+  if (!"TreeID" %in% names(tls)) {
     stop("The las object does not contain a TreeID attribute")
   }
   tls <- lidR::filter_poi(tls, !is.na(TreeID) & TreeID > 0)
-  if("Zref" %in% names(tls)){
-    dbh_slice <- tls |> lidR::filter_poi(Z > slice_min & Z < slice_max)
-  } else if("Znorm" %in% names(tls)){
-    dbh_slice <- tls |> lidR::filter_poi(Znorm > slice_min & Znorm < slice_max)
+  if ("Zref" %in% names(tls)) {
+    dbh_slice <- lidR::filter_poi(tls, Z > slice_min & Z <
+                                    slice_max)
+  } else if ("Znorm" %in% names(tls)) {
+    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+                                    Znorm < slice_max)
   } else {
-    tls_norm <- tls |> lidR::classify_ground(lidR::csf()) |> lidR::normalize_height(lidR::tin())
-    tls <- tls |> lidR::add_lasattribute(tls_norm$Z, "Znorm", "Z normalized")
-    dbh_slice <- tls |> lidR::filter_poi(Znorm > slice_min & Znorm < slice_max)
+    tls_norm <- lidR::normalize_height(lidR::classify_ground(tls,
+                                                             lidR::csf()), lidR::tin())
+    tls <- lidR::add_lasattribute(tls, tls_norm$Z, "Znorm",
+                                  "Z normalized")
+    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+                                    Znorm < slice_max)
   }
-
-  # create sequence of heights
   seq <- seq(slice_min, slice_max, by = increment)
-  seq <- data.frame(id = 1:length(seq), Zmin = seq- width *0.5, Zmax = seq + width*0.5)
-
-  # DBH estimation
-  #dbh_slice <- dbh_slice |> CspStandSegmentation::add_geometry(n_cores = ceiling(parallel::detectCores()/2 - 1))
-  na2true <- function(x) ifelse(is.na(x) | is.infinite(x), TRUE, x)
-
-  points_per_stem <- aggregate(dbh_slice$TreeID, by = list(dbh_slice$TreeID), FUN = length)
-
+  seq <- data.frame(id = 1:length(seq), Zmin = seq - width *
+                      0.5, Zmax = seq + width * 0.5)
+  na2true <- function(x) ifelse(is.na(x) | is.infinite(x),
+                                TRUE, x)
+  points_per_stem <- aggregate(dbh_slice$TreeID, by = list(dbh_slice$TreeID),
+                               FUN = length)
   t1 <- Sys.time()
-  #dbh_results <- data.frame(TreeID = numeric(), X = numeric(), Y = numeric(), DBH = numeric(), quality_flag = numeric())
-
   IDs <- points_per_stem$Group.1[points_per_stem$x > 3]
-
-  las_list <- lapply(IDs, function(id) tls |> lidR::filter_poi(TreeID == id))
-  # initialize progress bar
+  las_list <- list()
+  for(i in 1:length(IDs)){
+    las_list[[i]] <- lidR::filter_poi(tls, TreeID == IDs[i])
+  }
   print("Fit a DBH value to every tree:")
-  #pb = txtProgressBar(min = 0, max = length(IDs), initial = 0, style = 3)
-  #i <- 1
-
   require(foreach)
-  cl=parallel::makeCluster(n_cores) #I have 8 core 16 threads but use 14 here. Please edit this accordingly.
+  cl = parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
-  dbh_results <- foreach::foreach(tree = las_list, .combine=rbind, .export = c("ransac_circle_fit", "seq", "max_dbh")) %do% { #, .errorhandling = "remove"
-    # get the tree points
-    t <- tree@data$TreeID[1]
-    if(nrow(tree) < 3){
-      dbh <- NA
-      return(data.frame(TreeID = t,X = mean(tree$X), Y = mean(tree$Y), DBH = dbh, quality_flag = 1))
-      warning(paste("to little points in tree",t))
-    }
-
-    # create sequence of heights
-    seq <- seq(slice_min, slice_max, by = increment)
-    seq <- data.frame(id = 1:length(seq), Zmin = seq- width *0.5, Zmax = seq + width*0.5)
-    t_seq <- cbind(seq, X = NA,Y = NA, r = NA)
-
-    rs <- numeric()
-    xs <- numeric()
-    ys <- numeric()
-    for(s in seq$id){
-      # get the slice
-      slice <- tree |> lidR::filter_poi(Znorm > t_seq$Zmin[s] & Znorm < t_seq$Zmax[s])
-
-      if(nrow(slice) < 3){
-        rs <- c(rs, NA)
-        xs <- c(xs, NA)
-        ys <- c(ys, NA)
-        next
-      } else if(nrow(slice) < 100){
-        planes <- slice
-      } else {
-        # estimate the planarity and verticality of the points
-        slice <- slice |> CspStandSegmentation::add_geometry()
-        # use the most planar and vertical points to estimate the DBH
-        planes <- slice |> lidR::filter_poi(Planarity > quantile(Planarity, 0.95) & Verticality > quantile(Verticality, 0.95))
-        q <- 0.95
-        while(nrow(planes) < 100){
-          q <- q - 0.05
-          planes <- slice |> lidR::filter_poi(Planarity > quantile(Planarity, q) & Verticality > quantile(Verticality, q))
-          if(q < 0.2){
-            planes <- slice
-            break
+  dbh_results <- foreach::foreach(tree = las_list, .combine = rbind, .errorhandling = "remove") %dopar%
+    {
+      t <- tree@data$TreeID[1]
+      if (nrow(tree) < 3) {
+        dbh <- NA
+        return(data.frame(TreeID = t, X = mean(tree$X),
+                          Y = mean(tree$Y), DBH = dbh, quality_flag = 1))
+        warning(paste("to little points in tree",
+                      t))
+      }
+      seq <- seq(slice_min, slice_max, by = increment)
+      seq <- data.frame(id = 1:length(seq), Zmin = seq -
+                          width * 0.5, Zmax = seq + width * 0.5)
+      t_seq <- cbind(seq, X = NA, Y = NA, r = NA)
+      rs <- numeric()
+      xs <- numeric()
+      ys <- numeric()
+      for (s in seq$id) {
+        slice <- lidR::filter_poi(tree, Znorm > t_seq$Zmin[s] &
+                                    Znorm < t_seq$Zmax[s])
+        if (nrow(slice) < 3) {
+          rs <- c(rs, NA)
+          xs <- c(xs, NA)
+          ys <- c(ys, NA)
+          next
+        }
+        else if (nrow(slice) < 100) {
+          planes <- slice
+        }
+        else {
+          slice <- CspStandSegmentation::add_geometry(slice)
+          planes <- lidR::filter_poi(slice, Planarity >
+                                       quantile(Planarity, 0.95) & Verticality >
+                                       quantile(Verticality, 0.95))
+          q <- 0.95
+          while (nrow(planes) < 100) {
+            q <- q - 0.05
+            planes <- lidR::filter_poi(slice, Planarity >
+                                         quantile(Planarity, q) & Verticality >
+                                         quantile(Verticality, q))
+            if (q < 0.2) {
+              planes <- slice
+              break
+            }
           }
         }
+        planes <- slice
+        circle <- CspStandSegmentation::ransac_circle_fit(planes@data[, c("X",
+                                                                          "Y")], n_iterations = 500)
+        rs <- c(rs, circle$circle[3])
+        xs <- c(xs, circle$circle[1])
+        ys <- c(ys, circle$circle[2])
       }
-      planes <- slice
-      circle <- ransac_circle_fit(planes@data[, c("X", "Y")], n_iterations = 500)
-      # circle
-      # plot(Y ~ X, data = tree@data, col = "black", pch = ".", asp = 1)
-      # points(planes@data$X, planes@data$Y, col = "cornflowerblue", pch = 20)
-      # if(!is.null(circle)){
-      #   circ <- conicfit::calculateCircle(circle$circle[1],circle$circle[2],circle$circle[3])
-      #   points(circ[,1], circ[,2], pch = 20, col = "red")
-      # }
-      # t_seq$r[s] <- circle$circle[3]
-      # t_seq$X[s] <- circle$circle[1]
-      # t_seq$Y[s] <- circle$circle[2]
-      rs <- c(rs, circle$circle[3])
-      xs <- c(xs, circle$circle[1])
-      ys <- c(ys, circle$circle[2])
-    }
-
-    t_seq$r <- rs
-    t_seq$X <- xs
-    t_seq$Y <- ys
-    # remove outliers of t_seq$r based on the median and the 2*SD
-    t_seq$r[abs(t_seq$r - median(t_seq$r, na.rm = TRUE)) > 2 * sd(t_seq$r, na.rm = TRUE)] <- NA
-
-    # remove rows from the sequence were the circle was getting bigger > 1.3 times the smallest previous circle
-
-    for(s in 2:nrow(t_seq)){
-      if(na2true(t_seq$r[s] > suppressWarnings(min(t_seq$r[1:(s-1)], na.rm = TRUE) * 1.3 )) | na2true(t_seq$r[s] < 0.04) | all(is.na(t_seq$r[1:s]))){
-        t_seq[s, c("X","Y","r")] <- NA
+      t_seq$r <- rs
+      t_seq$X <- xs
+      t_seq$Y <- ys
+      t_seq$r[abs(t_seq$r - median(t_seq$r, na.rm = TRUE)) >
+                2 * sd(t_seq$r, na.rm = TRUE)] <- NA
+      for (s in 2:nrow(t_seq)) {
+        if (na2true(t_seq$r[s] > suppressWarnings(min(t_seq$r[1:(s -
+                                                                 1)], na.rm = TRUE) * 1.3)) | na2true(t_seq$r[s] <
+                                                                                                      0.04) | all(is.na(t_seq$r[1:s]))) {
+          t_seq[s, c("X", "Y", "r")] <- NA
+        }
+      }
+      if ((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <=
+                                         3) | (sum(!is.na(t_seq$Y)) <= 3)) {
+        dbh <- mean(t_seq$r, na.rm = TRUE) * 2
+        if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
+          return(data.frame(TreeID = t, X = mean(tree$X),
+                            Y = mean(tree$Y), DBH = NA, quality_flag = 2))
+        }
+        else {
+          return(data.frame(TreeID = t, X = mean(tree$X),
+                            Y = mean(tree$Y), DBH = dbh, quality_flag = 2))
+        }
+      }
+      spline_r <- suppressWarnings(with(t_seq[!is.na(t_seq$r),
+      ], smooth.spline(Zmin, r, df = 3)))
+      spline_x <- suppressWarnings(with(t_seq[!is.na(t_seq$X),
+      ], smooth.spline(Zmin, X, df = 20)))
+      spline_y <- suppressWarnings(with(t_seq[!is.na(t_seq$Y),
+      ], smooth.spline(Zmin, Y, df = 20)))
+      r <- as.numeric(predict(spline_r, 1.3)$y)
+      x <- as.numeric(predict(spline_x, 1.3)$y)
+      y <- as.numeric(predict(spline_y, 1.3)$y)
+      dbh <- r * 2
+      if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
+        return(data.frame(TreeID = t, X = mean(tree$X),
+                          Y = mean(tree$Y), DBH = NA, quality_flag = 3))
+      }
+      else {
+        return(data.frame(TreeID = t, X = x, Y = y, DBH = dbh,
+                          quality_flag = 4))
       }
     }
-    #rm(na2true)
-
-    # if there are less than 3 points in the sequence, the DBH is not estimated
-    if((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)){
-      dbh <- mean(t_seq$r, na.rm = TRUE) * 2
-      # check if dbh is within limits
-      if(is.na(dbh) | dbh > max_dbh | dbh < 0){
-        return(data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y), DBH = NA, quality_flag = 2))
-      } else {
-        return(data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y), DBH = dbh, quality_flag = 2))
-      }
-    }
-
-    # fit 3 splines to the radius and displacement
-    spline_r <- with(t_seq[!is.na(t_seq$r),], smooth.spline(Zmin, r, df = 3)) |> suppressWarnings()
-    spline_x <- with(t_seq[!is.na(t_seq$X),], smooth.spline(Zmin, X, df = 20)) |> suppressWarnings()
-    spline_y <- with(t_seq[!is.na(t_seq$Y),], smooth.spline(Zmin, Y, df = 20)) |> suppressWarnings()
-
-    # predict the radius and displacement at 1.3m
-    r <- predict(spline_r, 1.3)$y |> as.numeric()
-    x <- predict(spline_x, 1.3)$y |> as.numeric()
-    y <- predict(spline_y, 1.3)$y |> as.numeric()
-
-    dbh <- r * 2
-    # if the DBH is bigger than the maximum allowed or negative, the DBH is not estimated
-    if(is.na(dbh) | dbh > max_dbh | dbh < 0){
-      return(data.frame(TreeID = t, X = mean(tree$X), Y = mean(tree$Y),  DBH = NA, quality_flag = 3))
-    } else {
-      return(data.frame(TreeID = t, X = x, Y = y,  DBH = dbh, quality_flag = 4))
-    }
-    # update progress bar
-    #setTxtProgressBar(pb, i)
-    #i <- i + 1
-  }
-
   parallel::stopCluster(cl)
-  # close progress bar
-  #close(pb)
-
-  # Calculate the mean tree height above ground for dbh visualization
-  dbh_slice <- lidR::add_attribute(dbh_slice, dbh_slice@data$Z - dbh_slice@data$Znorm, "Zdiff")
-  tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID), FUN = mean)
+  dbh_slice <- lidR::add_attribute(dbh_slice, dbh_slice@data$Z -
+                                     dbh_slice@data$Znorm, "Zdiff")
+  tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID),
+                               FUN = mean)
   names(tree_pos_height) <- c("TreeID", "Z")
-
-  # calculate the tree heights by aggregating the original las file
-  heights <- aggregate(tls@data$Z, by = list(tls@data$TreeID), FUN = function(x) max(x) - min(x))
+  heights <- aggregate(tls@data$Z, by = list(tls@data$TreeID),
+                       FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
-
   print("Tree heights calculated.")
-
-  # add convex hull area to the results
-  convhull_area <- function(xy){
-    xy <- xy |> as.data.frame()
-    if(nrow(xy) < 3){
+  convhull_area <- function(xy) {
+    xy <- as.data.frame(xy)
+    if (nrow(xy) < 3) {
       return(NA)
     }
     ch <- chull(xy)
-    return(abs(0.5 * sum(xy[ch,1] * c(tail(xy[ch,2], -1), head(xy[ch,2], 1)) - c(tail(xy[ch,1], -1), head(xy[ch,1], 1)) * xy[ch,2])))
+    return(abs(0.5 * sum(xy[ch, 1] * c(tail(xy[ch, 2], -1),
+                                       head(xy[ch, 2], 1)) - c(tail(xy[ch, 1], -1), head(xy[ch,
+                                                                                            1], 1)) * xy[ch, 2])))
   }
-
-  # initialize progress bar
   print("Calculating convex hull areas.")
-  pb = txtProgressBar(min = 0, max = length(IDs), initial = 0, style = 3)
+  pb = txtProgressBar(min = 0, max = length(IDs), initial = 0,
+                      style = 3)
   i <- 1
-
   cpa <- data.frame(TreeID = numeric(), ConvexHullArea = numeric())
-  for(t in IDs){
-    tree <- tls |> lidR::filter_poi(TreeID == t & Znorm > 0.5)
-    if(nrow(tree) < 3){
+  for (t in IDs) {
+    tree <- lidR::filter_poi(tls, TreeID == t & Znorm > 0.5)
+    if (nrow(tree) < 3) {
       cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = NA))
       next
     }
-    cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = convhull_area(tree@data[, c("X", "Y")])))
-    # update progress bar
+    cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = convhull_area(tree@data[,
+                                                                                      c("X", "Y")])))
     setTxtProgressBar(pb, i)
     i <- i + 1
   }
-
-  # merge the results with the heights
   dbh_results <- merge(dbh_results, heights, by = "TreeID")
   dbh_results <- merge(dbh_results, cpa, by = "TreeID")
   dbh_results <- merge(dbh_results, tree_pos_height, by = "TreeID")
   return(dbh_results)
 }
+
+#' Function to perform a forest inventory based on a segmented las object (needs to contain TreeID)
+#' This version is a faster but more simplistic approach than forest_inventory() for the DBH estimates
+#'
+#' @param tls lidR las object with the segmented trees
+#' @param slice_min the minimum height of a DBH slice
+#' @param slice_max the maximum height of a DBH slice
+#' @param max_dbh the maximum DBH allowed
+#' @param n_cores number of cores to use
+#'
+#' @return a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
+forest_inventory_simple <- function (tls, slice_min = 1.2, slice_max = 1.4, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1)))
+{
+  if (!"TreeID" %in% names(tls)) {
+    stop("The las object does not contain a TreeID attribute")
+  }
+  tls <- lidR::filter_poi(tls, !is.na(TreeID) & TreeID > 0)
+  if ("Zref" %in% names(tls)) {
+    dbh_slice <- lidR::filter_poi(tls, Z > slice_min & Z <
+                                    slice_max)
+  } else if ("Znorm" %in% names(tls)) {
+    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+                                    Znorm < slice_max)
+  }  else {
+    tls_norm <- lidR::normalize_height(lidR::classify_ground(tls,
+                                                             lidR::csf()), lidR::tin())
+    tls <- lidR::add_lasattribute(tls, tls_norm$Z, "Znorm",
+                                  "Z normalized")
+    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+                                    Znorm < slice_max)
+  }
+
+  na2true <- function(x) ifelse(is.na(x) | is.infinite(x), TRUE, x)
+
+  t1 <- Sys.time()
+  IDs <- unique(dbh_slice$TreeID)
+  print("Fit a DBH value to every tree:")
+  las_list <- list()
+  for(i in 1:length(IDs)) {
+    las_list[[i]] <- lidR::filter_poi(tls, TreeID == IDs[i])
+  }
+
+  require(foreach)
+  cl = parallel::makeCluster(n_cores)
+  doParallel::registerDoParallel(cl)
+  dbh_results <- foreach::foreach(tree = las_list, .combine = rbind, .errorhandling = "remove") %dopar%
+    {
+      t <- tree@data$TreeID[1]
+      if (nrow(tree) < 3) {
+        dbh <- NA
+        return(data.frame(TreeID = t, X = mean(tree$X),
+                          Y = mean(tree$Y), DBH = dbh, quality_flag = 1))
+        warning(paste("to little points in tree",
+                      t))
+      }
+
+      circle <- CspStandSegmentation::ransac_circle_fit(tree@data[, c("X", "Y")], n_iterations = 500)
+      return(data.frame(TreeID = t, X = circle$circle[1], Y = circle$circle[2], DBH = min(c( circle$circle[3] * 2,2)), quality_flag = 4))
+
+
+    }
+  parallel::stopCluster(cl)
+  dbh_slice <- lidR::add_attribute(dbh_slice, dbh_slice@data$Z -
+                                     dbh_slice@data$Znorm, "Zdiff")
+  tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID),
+                               FUN = mean)
+  names(tree_pos_height) <- c("TreeID", "Z")
+  heights <- aggregate(tls@data$Z, by = list(as.character(tls@data$TreeID)),
+                       FUN = function(x) max(x) - min(x))
+  names(heights) <- c("TreeID", "Height")
+  heights$TreeID <- as.numeric(heights$TreeID)
+  print("Tree heights calculated.")
+  convhull_area <- function(xy) {
+    xy <- as.data.frame(xy)
+    if (nrow(xy) < 3) {
+      return(NA)
+    }
+    ch <- chull(xy)
+    return(abs(0.5 * sum(xy[ch, 1] * c(tail(xy[ch, 2], -1),
+                                       head(xy[ch, 2], 1)) - c(tail(xy[ch, 1], -1), head(xy[ch,
+                                                                                            1], 1)) * xy[ch, 2])))
+  }
+  print("Calculating convex hull areas.")
+  pb = txtProgressBar(min = 0, max = length(IDs), initial = 0,
+                      style = 3)
+  i <- 1
+  cpa <- data.frame(TreeID = numeric(), ConvexHullArea = numeric())
+  for (t in IDs) {
+    tree <- lidR::filter_poi(tls, TreeID == t & Znorm > 0.5)
+    if (nrow(tree) < 3) {
+      cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = NA))
+      next
+    }
+    cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = convhull_area(tree@data[,
+                                                                                      c("X", "Y")])))
+    setTxtProgressBar(pb, i)
+    i <- i + 1
+  }
+  dbh_results2 <- merge(dbh_results, heights, by = "TreeID")
+  dbh_results2 <- merge(dbh_results2, cpa, by = "TreeID")
+  dbh_results2 <- merge(dbh_results2, tree_pos_height, by = "TreeID")
+  return(dbh_results2)
+}
+
 
 #' Function to plot the inventory results into a lidR 3d plot of the point cloud
 #' @param plot lidR 3d plot
