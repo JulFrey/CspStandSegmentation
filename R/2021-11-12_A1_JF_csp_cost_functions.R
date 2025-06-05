@@ -318,6 +318,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' leaves).
 #' @param N_cores number of CPU cores used for parallel routing using the
 #' foreach package.
+#' @param remove_attributes if TRUE, the ExtraByte attributes used in this function will be removed afterwards
 #' @return Returns a copy of the las point cloud with an additional field for
 #' the TreeID.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
@@ -339,7 +340,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' lidR::plot(segmented, color = "TreeID")
 #'
 #' @export csp_cost_segmentation
-csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1) {
+csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1, remove_attributes = T) {
 
   # if map is a LAS object, extract tree positions
   if (lidR::is(map,"LAS")) {
@@ -442,6 +443,20 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
     add_voxel_coordinates(Voxel_size)
   las@data <- merge(las@data, vox2@data[,c('X', 'Y', 'Z', 'TreeID')], by.x = c('x_vox', 'y_vox', 'z_vox'), by.y = c('X', 'Y', 'Z'))
   las <- add_las_attributes(las)
+
+  # remove unnecessary temporary attributes if set ("Curvature"   "Linearity"   "Planarity"   "Sphericity"  "Anisotropy"  "Verticality" "x_vox"       "y_vox"       "z_vox")
+  if(remove_attributes){
+    las <- las |> lidR::remove_lasattribute('Curvature') |>
+      lidR::remove_lasattribute('Linearity') |>
+      lidR::remove_lasattribute('Planarity') |>
+      lidR::remove_lasattribute('Sphericity') |>
+      lidR::remove_lasattribute('Anisotropy') |>
+      lidR::remove_lasattribute('Verticality') |>
+      lidR::remove_lasattribute('x_vox') |>
+      lidR::remove_lasattribute('y_vox') |>
+      lidR::remove_lasattribute('z_vox')
+  }
+
   return(las)
 }
 
