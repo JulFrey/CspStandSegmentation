@@ -491,7 +491,7 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
   seed_rast <- cbind(seed_rast, data.frame(cluster = dbscan::dbscan(seed_rast[,c("x", "y")], eps = eps, minPts = 1)$cluster))
   seed_rast <- aggregate(seed_rast, by = list(seed_rast$cluster), mean)[, 3:5]
   if(normalized){
-    z_vals <- terra::extract(height, seed_rast[,1:2])
+    z_vals <- terra::extract(height, seed_rast[,1:2])[,2]
     if(any(is.na(z_vals))) z_vals[is.na(z_vals)] <- mean(c(zmin, zmax)) # catch NA's
   } else {
     z_vals <- terra::extract(dtm, seed_rast[,1:2])[,2]
