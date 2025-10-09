@@ -28,7 +28,7 @@ p_dist <- function(p1, p2){
 #' @export p_mat_dist
 #'
 #' @examples
-#' p_dist(as.matrix(cbind(runf(100),runf(100)), c(3,4))
+#' p_mat_dist(as.matrix(cbind(runif(100),runif(100))), c(3,4))
 p_mat_dist <- function(mat, p){
   mat2 <- mat
   for(c in 1:ncol(mat)){
@@ -53,6 +53,7 @@ p_mat_dist <- function(mat, p){
 #' @examples
 #' mat <- matrix(rnorm(1000), ncol = 10)
 #' sample <- fds(mat, 50, ret = "mat")
+#' str(sample)
 #' \dontrun{
 #'   plot(mat, col = "black", pch = 19)
 #'   points(sample, col = "red", pch = 19)
@@ -61,7 +62,7 @@ fds <- function(mat, n, ret = "idx", scale = F){
   # check the inputs
   was_las <- FALSE
   if(!is.matrix(mat)){
-    if(class(mat) == "LAS"){
+    if(is(mat, "LAS")){
       was_las <- TRUE
       las <- mat
       mat <- as.matrix(las@data[,c("X", "Y", "Z")])

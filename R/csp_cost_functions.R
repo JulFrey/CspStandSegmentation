@@ -1,8 +1,3 @@
-# load packages
-invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.only = TRUE))
-
-# ------------------------------------------------------------------------------
-
 # thx zoe https://github.com/zoeschindler/masterarbeit/blob/main/03_raster_calculation_functions.R
 
 #' Add geometric features to a LAS object
@@ -12,11 +7,11 @@ invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.onl
 #' it adds geometric features like Curvature, Linearity, Planarity, Sphericity,
 #' Anisotrophy and Verticlity to the points itself.
 #'
-#' Details of the metrics can be found in: \ Hackel, T., Wegner, J.D. &
+#' Details of the metrics can be found in: Hackel, T., Wegner, J.D. &
 #' Schindler, K. (2016) Contour Detection in Unstructured 3D Point Clouds. In
 #' 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR).
 #' Presented at the 2016 IEEE Conference on Computer Vision and Pattern
-#' Recognition (CVPR), IEEE, Las Vegas, NV, USA, pp. 1610–1618.
+#' Recognition (CVPR), IEEE, Las Vegas, NV, USA, pp. 1610-1618.
 #'
 #' @param las A LAS object (see lidR::LAS)
 #' @param k the k nearest neighbors to use for the eigenvalue calculation
@@ -25,13 +20,13 @@ invisible(lapply(c('lidR','dbscan', 'igraph', 'foreach'), require, character.onl
 #' attached to it in the LAS@data section.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
-#'
+#' \dontrun{
 #' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
 #' las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
 #'
 #' las <- add_geometry(las, k = 5, n_cores = parallel::detectCores()-1)
 #' summary(las@data)
-#'
+#' }
 #'
 #' @export add_geometry
 add_geometry <- function(las, k = 10L, n_cores = 1) {
@@ -68,14 +63,16 @@ add_geometry <- function(las, k = 10L, n_cores = 1) {
 #' X_gr,Y_gr,Z_gr as the center of gravity (mean point coordinates) as well as
 #' all other numeric columns voxel mean values with their original name.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
-#' @seealso \code{\link{voxelize_points}}
+#' @seealso \code{\link[lidR]{voxelize_points}}
 #' @examples
 #'
 #' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
-#' las |> voxelize_points_mean_attributes(1) |> lidR::plot(color = 'X_gr')
-#'
+#' vox <- las |> voxelize_points_mean_attributes(1)
+#' \dontrun{
+#' vox |> lidR::plot(color = 'X_gr')
+#' }
 #' @export voxelize_points_mean_attributes
 voxelize_points_mean_attributes <- function(las, res) {
   # check if inputs of the right type
@@ -94,7 +91,14 @@ voxelize_points_mean_attributes <- function(las, res) {
   }
 
   # create voxel coordinates
-  by <- lidR:::group_grid_3d(las@data$X, las@data$Y, las@data$Z, res, c(0, 0, 0.5*res[2]))
+  group_grid_3d <- function(...) {
+    if (!exists("group_grid_3d", where = asNamespace("lidR"), mode = "function")) {
+      stop("lidR:::group_grid_3d not available - please update lidR")
+    }
+    get("group_grid_3d", envir = asNamespace("lidR"))(...)
+  }
+
+  by <- group_grid_3d(las@data$X, las@data$Y, las@data$Z, res, c(0, 0, 0.5*res[2]))
 
   # add mean attributes
   voxels <- las@data[,lapply(.SD, mean), by = by]
@@ -130,9 +134,9 @@ voxelize_points_mean_attributes <- function(las, res) {
 #' las = lidR::readTLSLAS(file)
 #'
 #' las <- add_voxel_coordinates(las,res = 1)
-#'
+#' \dontrun{
 #' lidR::plot(las, color = 'z_vox')
-#'
+#' }
 #' @export add_voxel_coordinates
 add_voxel_coordinates <- function(las, res) {
   # check if inputs of the right type
@@ -144,7 +148,14 @@ add_voxel_coordinates <- function(las, res) {
   }
 
   # create voxel coordinates
-  vox <- lidR:::group_grid_3d(las@data$X, las@data$Y, las@data$Z, c(res, res), c(0, 0, 0.5*res))
+  group_grid_3d <- function(...) {
+    if (!exists("group_grid_3d", where = asNamespace("lidR"), mode = "function")) {
+      stop("lidR:::group_grid_3d not available - please update lidR")
+    }
+    get("group_grid_3d", envir = asNamespace("lidR"))(...)
+  }
+
+  vox <- group_grid_3d(las@data$X, las@data$Y, las@data$Z, c(res, res), c(0, 0, 0.5*res))
 
   # add voxel coordinates to LAS
   las <- las |>
@@ -185,13 +196,20 @@ add_las_attributes <- function(las) {
 
   # Add attributes from data.table permanently to attributes
   names <- names(las@data)
-  names <- names[!(names %in% lidR:::LASATTRIBUTES)]
+  LASATTRIBUTES <- c("X", "Y", "Z",
+                     "Intensity", "ReturnNumber", "NumberOfReturns",
+                     "ScanDirectionFlag", "EdgeOfFlightline","Classification",
+                     "Synthetic_flag", "Keypoint_flag", "Withheld_flag",
+                     "Overlap_flag", "ScanAngle", "ScanAngleRank",
+                     "ScannerChannel", "NIR", "UserData", "gpstime",
+                     "PointSourceID", "R", "G", "B")
+  names <- names[!(names %in% LASATTRIBUTES)]
   for (name in names) {
     if (!with(las@data, is.numeric(get(name)))) {
       next
     }
     las <- las |>
-      add_lasattribute(name = name, desc = name)
+      lidR::add_lasattribute(name = name, desc = name)
   }
   return(las)
 }
@@ -222,6 +240,8 @@ add_las_attributes <- function(las) {
 #' @seealso \code{\link{csp_cost_segmentation}}
 #'
 #' @export comparative_shortest_path
+#'
+#' @importFrom foreach %dopar% foreach
 comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size) {
 
   # update weights
@@ -336,7 +356,9 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' CspStandSegmentation::add_geometry() |>
 #'   CspStandSegmentation::csp_cost_segmentation(map, 1)
 #'
+#' \dontrun{
 #' lidR::plot(segmented, color = "TreeID")
+#' }
 #'
 #' @export csp_cost_segmentation
 csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1) {

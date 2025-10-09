@@ -13,8 +13,11 @@
 #' las1 <- lidR::LAS(data.frame(X = runif(100), Y = runif(100), Z = runif(100)))
 #' las2 <- lidR::LAS(data.frame(X = runif(100) + 2, Y = runif(100), Z = runif(100)))
 #' las3 <- lidR::LAS(data.frame(X = runif(100) + 4, Y = runif(100), Z = runif(100)))
-#' las_merge(las1, las2, las3)
-#' # las_merge(las1, las2, las3) |> lidR::plot(color = "oci")
+#' merged <- las_merge(las1, las2, las3)
+#' str(merged)
+#' \dontrun{
+#' merged |> lidR::plot(color = "oci")
+#' }
 las_merge <- function(..., oci = TRUE, fill = FALSE){
   is_las <- function(x) lidR::is(x, "LAS")
 
@@ -22,10 +25,11 @@ las_merge <- function(..., oci = TRUE, fill = FALSE){
   if(!all(sapply(list(...), is_las))) stop("All inputs must be LAS objects")
 
   # check if the crs is the same
-  crs <- sapply(list(...), function(x) lidR::crs(x))
-  projargs <- sapply(crs, function(x) x@projargs)
-  if(any(is.na(projargs))) warning("Some inputs do not have a CRS")
-  if(!all(sapply(crs, terra::same.crs,y = crs[[1]])) & !all(is.na(projargs))) stop("All inputs must have the same CRS")
+  crs <- lapply(list(...), function(x) lidR::st_crs(x))
+  wkt <- sapply(crs, function(x) x$wkt)
+  if(any(is.na(wkt))) warning("Some inputs do not have a CRS")
+  # check if all crs are the same
+  if(length(unique(wkt)) > 1) stop("All inputs must have the same CRS")
 
   # put all objects in a list
   las_list <- list(...)

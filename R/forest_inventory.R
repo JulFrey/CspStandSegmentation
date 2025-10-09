@@ -21,6 +21,7 @@ point_center_angle <- function(point, circle){
 
 #' Suppress only the cat() output
 #' @param f function to be called
+#' @param ... parameters to the function
 #' @return the return value of the function
 suppress_cat <- function(f, ...) {
   null_device <- if (.Platform$OS.type == "windows") "nul" else "/dev/null"
@@ -111,40 +112,42 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
 #' @examples
+#' \dontrun{
 #' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
-#' tls = lidR::readTLSLAS(file)
+#' las = lidR::readTLSLAS(file)
 #'
 #' # find tree positions as starting points for segmentation
-#' map <- CspStandSegmentation::find_base_coordinates_raster(tls)
+#' map <- CspStandSegmentation::find_base_coordinates_raster(las)
 #'
 #' # segment trees
-#' segmented <- tls |>
+#' segmented <- las |>
 #'   CspStandSegmentation::add_geometry(n_cores = parallel::detectCores()/2) |>
 #'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
 #'
 #' # show results
-#' \dontrun{lidR::plot(segmented, color = "TreeID")}
+#' lidR::plot(segmented, color = "TreeID")
 #'
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented)
-forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1))) {
-  if (!"TreeID" %in% names(tls)) {
+#' }
+forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1))) {
+  if (!"TreeID" %in% names(las)) {
     stop("The las object does not contain a TreeID attribute")
   }
-  tls <- lidR::filter_poi(tls, !is.na(TreeID) & TreeID > 0)
-  if ("Zref" %in% names(tls)) {
-    dbh_slice <- lidR::filter_poi(tls, Z > slice_min & Z <
+  las <- lidR::filter_poi(las, !is.na(TreeID) & TreeID > 0)
+  if ("Zref" %in% names(las)) {
+    dbh_slice <- lidR::filter_poi(las, Z > slice_min & Z <
                                     slice_max)
-  } else if ("Znorm" %in% names(tls)) {
-    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+  } else if ("Znorm" %in% names(las)) {
+    dbh_slice <- lidR::filter_poi(las, Znorm > slice_min &
                                     Znorm < slice_max)
   } else {
-    tls_norm <- lidR::normalize_height(lidR::classify_ground(tls,
+    las_norm <- lidR::normalize_height(lidR::classify_ground(las,
                                                              lidR::csf()), lidR::tin())
-    tls <- lidR::add_lasattribute(tls, tls_norm$Z, "Znorm",
+    las <- lidR::add_lasattribute(las, las_norm$Z, "Znorm",
                                   "Z normalized")
-    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+    dbh_slice <- lidR::filter_poi(las, Znorm > slice_min &
                                     Znorm < slice_max)
   }
   seq <- seq(slice_min, slice_max, by = increment)
@@ -158,10 +161,10 @@ forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0
   IDs <- points_per_stem$Group.1[points_per_stem$x > 3]
   las_list <- list()
   for(i in 1:length(IDs)){
-    las_list[[i]] <- lidR::filter_poi(tls, TreeID == IDs[i])
+    las_list[[i]] <- lidR::filter_poi(las, TreeID == IDs[i])
   }
   print("Fit a DBH value to every tree:")
-  require(foreach)
+  # require(foreach)
   cl = parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
   dbh_results <- foreach::foreach(tree = las_list, .combine = rbind, .errorhandling = "remove") %dopar%
@@ -266,7 +269,7 @@ forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0
   tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID),
                                FUN = mean)
   names(tree_pos_height) <- c("TreeID", "Z")
-  heights <- aggregate(tls@data$Z, by = list(tls@data$TreeID),
+  heights <- aggregate(las@data$Z, by = list(las@data$TreeID),
                        FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
   print("Tree heights calculated.")
@@ -286,7 +289,7 @@ forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0
   i <- 1
   cpa <- data.frame(TreeID = numeric(), ConvexHullArea = numeric())
   for (t in IDs) {
-    tree <- lidR::filter_poi(tls, TreeID == t & Znorm > 0.5)
+    tree <- lidR::filter_poi(las, TreeID == t & Znorm > 0.5)
     if (nrow(tree) < 3) {
       cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = NA))
       next
@@ -305,31 +308,31 @@ forest_inventory <- function (tls, slice_min = 0.3, slice_max = 4, increment = 0
 #' Function to perform a forest inventory based on a segmented las object (needs to contain TreeID)
 #' This version is a faster but more simplistic approach than forest_inventory() for the DBH estimates
 #'
-#' @param tls lidR las object with the segmented trees
+#' @param las lidR las object with the segmented trees
 #' @param slice_min the minimum height of a DBH slice
 #' @param slice_max the maximum height of a DBH slice
 #' @param max_dbh the maximum DBH allowed
 #' @param n_cores number of cores to use
 #'
 #' @return a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
-forest_inventory_simple <- function (tls, slice_min = 1.2, slice_max = 1.4, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1)))
+forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1)))
 {
-  if (!"TreeID" %in% names(tls)) {
+  if (!"TreeID" %in% names(las)) {
     stop("The las object does not contain a TreeID attribute")
   }
-  tls <- lidR::filter_poi(tls, !is.na(TreeID) & TreeID > 0)
-  if ("Zref" %in% names(tls)) {
-    dbh_slice <- lidR::filter_poi(tls, Z > slice_min & Z <
+  las <- lidR::filter_poi(las, !is.na(TreeID) & TreeID > 0)
+  if ("Zref" %in% names(las)) {
+    dbh_slice <- lidR::filter_poi(las, Z > slice_min & Z <
                                     slice_max)
-  } else if ("Znorm" %in% names(tls)) {
-    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+  } else if ("Znorm" %in% names(las)) {
+    dbh_slice <- lidR::filter_poi(las, Znorm > slice_min &
                                     Znorm < slice_max)
   }  else {
-    tls_norm <- lidR::normalize_height(lidR::classify_ground(tls,
+    las_norm <- lidR::normalize_height(lidR::classify_ground(las,
                                                              lidR::csf()), lidR::tin())
-    tls <- lidR::add_lasattribute(tls, tls_norm$Z, "Znorm",
+    las <- lidR::add_lasattribute(las, las_norm$Z, "Znorm",
                                   "Z normalized")
-    dbh_slice <- lidR::filter_poi(tls, Znorm > slice_min &
+    dbh_slice <- lidR::filter_poi(las, Znorm > slice_min &
                                     Znorm < slice_max)
   }
 
@@ -340,10 +343,10 @@ forest_inventory_simple <- function (tls, slice_min = 1.2, slice_max = 1.4, max_
   print("Fit a DBH value to every tree:")
   las_list <- list()
   for(i in 1:length(IDs)) {
-    las_list[[i]] <- lidR::filter_poi(tls, TreeID == IDs[i])
+    las_list[[i]] <- lidR::filter_poi(las, TreeID == IDs[i])
   }
 
-  require(foreach)
+  # require(foreach)
   cl = parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
   dbh_results <- foreach::foreach(tree = las_list, .combine = rbind, .errorhandling = "remove") %dopar%
@@ -368,7 +371,7 @@ forest_inventory_simple <- function (tls, slice_min = 1.2, slice_max = 1.4, max_
   tree_pos_height <- aggregate(dbh_slice$Zdiff, by = list(dbh_slice$TreeID),
                                FUN = mean)
   names(tree_pos_height) <- c("TreeID", "Z")
-  heights <- aggregate(tls@data$Z, by = list(as.character(tls@data$TreeID)),
+  heights <- aggregate(las@data$Z, by = list(as.character(las@data$TreeID)),
                        FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
   heights$TreeID <- as.numeric(heights$TreeID)
@@ -389,7 +392,7 @@ forest_inventory_simple <- function (tls, slice_min = 1.2, slice_max = 1.4, max_
   i <- 1
   cpa <- data.frame(TreeID = numeric(), ConvexHullArea = numeric())
   for (t in IDs) {
-    tree <- lidR::filter_poi(tls, TreeID == t & Znorm > 0.5)
+    tree <- lidR::filter_poi(las, TreeID == t & Znorm > 0.5)
     if (nrow(tree) < 3) {
       cpa <- rbind(cpa, data.frame(TreeID = t, ConvexHullArea = NA))
       next

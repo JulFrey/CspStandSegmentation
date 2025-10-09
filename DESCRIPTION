@@ -7,9 +7,27 @@ Description: This package provides a function to segment trees from a stand scan
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
-Imports: Rcpp (>= 1.0.5), lidR, dbscan, igraph, foreach, parallel, doParallel,magrittr, data.table, sf, terra, RCSF, conicfit
-LinkingTo: Rcpp, RcppArmadillo, lidR, BH
+Imports: 
+    Rcpp (>= 1.0.5),
+    lidR,
+    dbscan,
+    igraph,
+    foreach,
+    doParallel,
+    magrittr,
+    data.table,
+    sf,
+    terra,
+    RCSF,
+    conicfit,
+    rgl
+LinkingTo: 
+    Rcpp,
+    RcppArmadillo,
+    lidR,
+    BH
 RoxygenNote: 7.3.2
+Depends: R (>= 4.1.0)
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3

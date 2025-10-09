@@ -1,2 +1,8 @@
+^\.github$
+^\.git$
+^\.gitignore$
+^README\.Rmd$
+^README-.*\.png$
+^\.DS_Store$
 ^.*\.Rproj$
 ^\.Rproj\.user$
