@@ -1,13 +1,13 @@
-#' Makes one las object from multiple las objects
+#' Makes one las-object from multiple las-objects
 #'
-#' This function merges multiple las objects into one las object. The function checks if all inputs are las objects and if they have the same CRS. The function will also add a column oci with the original cloud index to each las object. The function will then rbind all data by the minimum set of columns. If the fill argument is set to False, columns which do not exist in all las objects will be removed. If the fill argument is set to True, missing columns will be filled with NA.
+#' This function merges multiple las objects into one las object. The function checks if all inputs are las-objects and if they have the same CRS. The function will also add a column oci with the original cloud index to each las-object. The function will then rbind all data by the minimum set of columns. If the fill argument is set to False, columns which do not exist in all las objects will be removed. If the fill argument is set to True, missing columns will be filled with NA.
 #'
 #'
 #' @param ... any number of las objects
 #' @param oci add a column with the original cloud index
-#' @param fill fill missing columns with NA if it is set to False collumns which do not exist in all las objects will be removed
+#' @param fill fill missing columns with NA if it is set to False columns which do not exist in all las-objects will be removed
 #'
-#' @returns A single las object
+#' @returns A single las-object with only the overlapping column name
 #'
 #' @examples
 #' las1 <- lidR::LAS(data.frame(X = runif(100), Y = runif(100), Z = runif(100)))
@@ -18,6 +18,8 @@
 #' \dontrun{
 #' merged |> lidR::plot(color = "oci")
 #' }
+#'
+#' @export las_merge
 las_merge <- function(..., oci = TRUE, fill = FALSE){
   is_las <- function(x) lidR::is(x, "LAS")
 

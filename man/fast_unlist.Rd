@@ -9,10 +9,14 @@ fast_unlist(list, l)
 \arguments{
 \item{list}{a list element created by dbscan::frNN}
 
-\item{l}{the expected length of the result
-    @author Julian Frey <julian.frey@iww.uni-freiburg.de>
-@export fast_unlist}
+\item{l}{the expected length of the result}
+}
+\value{
+Returns a vector with the values in the list.
 }
 \description{
 creates a vector of indices from a nested list created by dbscan::frNN
+}
+\author{
+Julian Frey <julian.frey@iww.uni-freiburg.de>
 }

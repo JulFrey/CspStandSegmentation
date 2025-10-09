@@ -11,6 +11,9 @@ fast_unlist_dist(list, l)
 
 \item{l}{the expected length of the result}
 }
+\value{
+Returns a vector with the values in the list.
+}
 \description{
 extracts the distances from a nested list created by dbscan::frNN
 }

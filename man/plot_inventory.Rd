@@ -28,4 +28,5 @@ Function to plot the inventory results into a lidR 3d plot of the point cloud
 x <- lidR::plot(segmented, color = "TreeID")
 plot_inventory(x, inventory)
 }
+
 }

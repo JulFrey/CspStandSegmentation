@@ -20,6 +20,13 @@ ransac_circle_fit(
 
 \item{min_inliers}{integer minimum number of inliers to consider the circle as valid}
 }
+\value{
+a list with the following elements:
+circle: the center coordinates and radius of the circle
+inliers: number of points within the circles dist threshold
+angle_segs: number of populated 10deg angular segments of the circle using the distance_threshold
+n_iter: number of iterations run
+}
 \description{
 This function fits a circle to a set of points using the RANSAC algorithm it maximizes the points that are in the circle and the number of filled 36 degree angle segments
 Therefore, this function searches for the most complete circle with the highest number of points represented.

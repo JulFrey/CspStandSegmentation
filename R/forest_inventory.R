@@ -6,6 +6,7 @@
 #' @param point numeric vector of length 2 c(X,Y)
 #' @param circle numeric vector of length 3 c(center_X, center_Y, radius)
 #' @return numeric distance from the point to the circle
+#' @export point_circle_distance
 point_circle_distance <- function(point, circle) {
   return(abs(sqrt(sum((point - circle[1:2])^2)) - circle[3]))
 }
@@ -14,6 +15,7 @@ point_circle_distance <- function(point, circle) {
 #' @param point numeric vector of length 2 c(X,Y)
 #' @param circle numeric vector of length 3 c(center_X, center_Y, radius)
 #' @return numeric angle in degrees
+#' @export point_center_angle
 point_center_angle <- function(point, circle){
   ang <- atan2(point[2] - circle[2], point[1] - circle[1])
   return(ang * 180 / pi)
@@ -23,6 +25,7 @@ point_center_angle <- function(point, circle){
 #' @param f function to be called
 #' @param ... parameters to the function
 #' @return the return value of the function
+#' @export suppress_cat
 suppress_cat <- function(f, ...) {
   null_device <- if (.Platform$OS.type == "windows") "nul" else "/dev/null"
   con <- file(null_device, "w") # Open connection to null device
@@ -43,6 +46,12 @@ suppress_cat <- function(f, ...) {
 #' @param n_iterations integer maximum number of iterations
 #' @param distance_threshold numeric maximum distance from a point to the circle to be considered an inlier
 #' @param min_inliers integer minimum number of inliers to consider the circle as valid
+#' @return a list with the following elements:
+#' circle: the center coordinates and radius of the circle
+#' inliers: number of points within the circles dist threshold
+#' angle_segs: number of populated 10deg angular segments of the circle using the distance_threshold
+#' n_iter: number of iterations run
+#' @export ransac_circle_fit
 ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.01, min_inliers = 3) {
   # catch if less than 3 points are given
   if (nrow(data) < 3) {
@@ -55,7 +64,7 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
   best_angle_segs <- 0
   n_pts_sample <- min(c(5, nrow(data)))
 
-  # calculate point densities in neighbourhood
+  # calculate point densities in neighborhood
   p_densities <- dbscan::pointdensity(data, eps = 0.05)
 
 
@@ -131,6 +140,7 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented)
 #' }
+#' @export forest_inventory
 forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1))) {
   if (!"TreeID" %in% names(las)) {
     stop("The las object does not contain a TreeID attribute")
@@ -315,6 +325,8 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
 #' @param n_cores number of cores to use
 #'
 #' @return a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
+#'
+#' @export forest_inventory_simple
 forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1)))
 {
   if (!"TreeID" %in% names(las)) {
@@ -421,6 +433,8 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #' x <- lidR::plot(segmented, color = "TreeID")
 #' plot_inventory(x, inventory)
 #' }
+#'
+#' @export plot_inventory
 plot_inventory <- function(plot, inventory,col = NA,cex = 1.5, label_col = "white"){
   if(is.na(col)){
     col <- rainbow(max(inventory$TreeID) - min(inventory$TreeID))

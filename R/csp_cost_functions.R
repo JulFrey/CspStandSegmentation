@@ -239,9 +239,9 @@ add_las_attributes <- function(las) {
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{csp_cost_segmentation}}
 #'
-#' @export comparative_shortest_path
-#'
 #' @importFrom foreach %dopar% foreach
+#'
+#' @export comparative_shortest_path
 comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size) {
 
   # update weights

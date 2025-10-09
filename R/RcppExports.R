@@ -8,8 +8,9 @@
 #'
 #' @param list a list element created by dbscan::frNN
 #' @param l the expected length of the result
-#'       @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
-#'   @export fast_unlist
+#' @return Returns a vector with the values in the list.
+#' @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
+#' @export fast_unlist
 fast_unlist <- function(list, l) {
     .Call(`_CspStandSegmentation_fast_unlist`, list, l)
 }
@@ -20,6 +21,7 @@ fast_unlist <- function(list, l) {
 #'
 #' @param list a list element created by dbscan::frNN
 #' @param l the expected length of the result
+#' @return Returns a vector with the values in the list.
 #' @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
 #' @export fast_unlist_dist
 fast_unlist_dist <- function(list, l) {

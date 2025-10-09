@@ -2,7 +2,7 @@
 % Please edit documentation in R/merge_las_objects.R
 \name{las_merge}
 \alias{las_merge}
-\title{Makes one las object from multiple las objects}
+\title{Makes one las-object from multiple las-objects}
 \usage{
 las_merge(..., oci = TRUE, fill = FALSE)
 }
@@ -11,13 +11,13 @@ las_merge(..., oci = TRUE, fill = FALSE)
 
 \item{oci}{add a column with the original cloud index}
 
-\item{fill}{fill missing columns with NA if it is set to False collumns which do not exist in all las objects will be removed}
+\item{fill}{fill missing columns with NA if it is set to False columns which do not exist in all las-objects will be removed}
 }
 \value{
-A single las object
+A single las-object with only the overlapping column name
 }
 \description{
-This function merges multiple las objects into one las object. The function checks if all inputs are las objects and if they have the same CRS. The function will also add a column oci with the original cloud index to each las object. The function will then rbind all data by the minimum set of columns. If the fill argument is set to False, columns which do not exist in all las objects will be removed. If the fill argument is set to True, missing columns will be filled with NA.
+This function merges multiple las objects into one las object. The function checks if all inputs are las-objects and if they have the same CRS. The function will also add a column oci with the original cloud index to each las-object. The function will then rbind all data by the minimum set of columns. If the fill argument is set to False, columns which do not exist in all las objects will be removed. If the fill argument is set to True, missing columns will be filled with NA.
 }
 \examples{
 las1 <- lidR::LAS(data.frame(X = runif(100), Y = runif(100), Z = runif(100)))
@@ -28,4 +28,5 @@ str(merged)
 \dontrun{
 merged |> lidR::plot(color = "oci")
 }
+
 }

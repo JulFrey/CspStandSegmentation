@@ -2,11 +2,10 @@ Package: CspStandSegmentation
 Type: Package
 Title: Comparative Shortest Path Stand Segmentation
 Version: 0.1.2
-Authors@R: c(person("Julian", "Frey", , "julian.frey@wwd.uni-freiburg.de", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7895-702X")),person("Zoe", "Schindler", , "zoe.schindler@wwd.uni-freiburg.de", role = c("ctb"), comment = c(ORCID = "0000-0003-2972-1920")))
-Description: This package provides a function to segment trees from a stand scanned with terrestrial laser scanning. It strongly builds upon the work of the lidR and the TreeLS packages.
+Authors@R: c(person("Julian", "Frey", email = "julian.frey@wwd.uni-freiburg.de", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7895-702X")),person("Zoe", "Schindler", email = "zoe.schindler@wwd.uni-freiburg.de", role = c("ctb"), comment = c(ORCID = "0000-0003-2972-1920")))
+Description: This package provides functionality to segment single trees from a forest stand scanned with proximate (e.g. terrestrial or mobile) laser scanning. It strongly builds upon the lidR package. It provides the full workflow from a raw point cloud to a full tabular forest inventory.  
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Imports: 
     Rcpp (>= 1.0.5),
     lidR,

@@ -18,8 +18,9 @@ using namespace lidR;
 //'
 //' @param list a list element created by dbscan::frNN
 //' @param l the expected length of the result
-//'       @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
-//'   @export fast_unlist
+//' @return Returns a vector with the values in the list.
+//' @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
+//' @export fast_unlist
 // [[Rcpp::export]]
 IntegerVector fast_unlist(List list, int l){
 
@@ -44,6 +45,7 @@ IntegerVector fast_unlist(List list, int l){
 //'
 //' @param list a list element created by dbscan::frNN
 //' @param l the expected length of the result
+//' @return Returns a vector with the values in the list.
 //' @author Julian Frey <julian.frey@@iww.uni-freiburg.de>
 //' @export fast_unlist_dist
 // [[Rcpp::export]]
