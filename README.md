@@ -19,7 +19,7 @@ devtools::install_github('https://github.com/JulFrey/CspStandSegmentation')
 
 # Check if it is working
 library(CspStandSegmentation)
-example("csp_cost_segmentation")
+example("csp_cost_segmentation", run.dontrun = TRUE)
 
 ```
 
