@@ -1,5 +1,4 @@
 # Workflow derived from https://github.com/r-lib/actions/tree/master/examples
-# Need help debugging build failures? Start at https://github.com/r-lib/actions#where-to-find-help
 on:
   push:
     branches: [main]
@@ -12,17 +11,16 @@ jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
 
-    name: ${{ matrix.config.os }} (${{ matrix.config.r }})
-
     strategy:
       fail-fast: false
       matrix:
         config:
           - {os: macOS-latest,   r: 'release'}
           - {os: windows-latest, r: 'release'}
-          - {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
-          - {os: ubuntu-latest,   r: 'release'}
-          - {os: ubuntu-latest,   r: 'oldrel-1'}
+          - {os: ubuntu-latest,  r: 'devel'}
+          - {os: ubuntu-latest,  r: 'release'}
+          - {os: ubuntu-latest,  r: 'oldrel-1'}
+          - {os: debian-unstable, r: 'devel', docker: 'rocker/r-ver:devel'} # new Debian job
 
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
@@ -31,19 +29,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Docker (Debian only)
+        if: ${{ matrix.config.os == 'debian-unstable' }}
+        uses: docker/setup-buildx-action@v2
+
+      - name: Run Debian container (Debian only)
+        if: ${{ matrix.config.os == 'debian-unstable' }}
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workdir \
+            -w /workdir \
+            ${{ matrix.config.docker }} \
+            R -e "install.packages('remotes'); remotes::install_deps(dependencies=TRUE); devtools::check()"
+
       - uses: r-lib/actions/setup-pandoc@v2
+        if: ${{ matrix.config.os != 'debian-unstable' }}
 
       - uses: r-lib/actions/setup-r@v2
+        if: ${{ matrix.config.os != 'debian-unstable' }}
         with:
           r-version: ${{ matrix.config.r }}
-          http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        if: ${{ matrix.config.os != 'debian-unstable' }}
         with:
           extra-packages: rcmdcheck
 
       - uses: r-lib/actions/check-r-package@v2
+        if: ${{ matrix.config.os != 'debian-unstable' }}
 
       - name: Show testthat output
         if: always()
