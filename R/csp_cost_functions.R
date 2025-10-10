@@ -346,6 +346,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' @examples
 #'
 #' # read example data
+#' \dontrun{
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
 #'
@@ -354,9 +355,9 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' # segment trees
 #' segmented <- las |>
 #' CspStandSegmentation::add_geometry() |>
-#'   CspStandSegmentation::csp_cost_segmentation(map, 1)
+#' CspStandSegmentation::csp_cost_segmentation(map, 1)
 #'
-#' \dontrun{
+#'
 #' lidR::plot(segmented, color = "TreeID")
 #' }
 #'

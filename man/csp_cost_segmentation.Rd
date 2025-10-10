@@ -63,6 +63,7 @@ cloud receive the TreeID from their parent voxel.
 \examples{
 
 # read example data
+\dontrun{
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 las = lidR::readTLSLAS(file)
 
@@ -71,9 +72,9 @@ map <- CspStandSegmentation::find_base_coordinates_raster(las)
 # segment trees
 segmented <- las |>
 CspStandSegmentation::add_geometry() |>
-  CspStandSegmentation::csp_cost_segmentation(map, 1)
+CspStandSegmentation::csp_cost_segmentation(map, 1)
 
-\dontrun{
+
 lidR::plot(segmented, color = "TreeID")
 }
 
