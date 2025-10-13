@@ -6,3 +6,7 @@
 ^\.DS_Store$
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^LICENSE\.txt$
+^\.dockerignore$
+^Dockerfile$
+

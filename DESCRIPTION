@@ -12,7 +12,7 @@ Description: We provide functionality to segment single trees from a
   raw point cloud to a full tabular forest inventory.  
 URL: https://github.com/JulFrey/CspStandSegmentation
 BugReports: https://github.com/JulFrey/CspStandSegmentation/issues
-License: GPL-3 + file LICENSE
+License: GPL-3
 Encoding: UTF-8
 Imports: 
     Rcpp (>= 1.0.5),
@@ -38,3 +38,4 @@ Depends: R (>= 4.1.0)
 Suggests: 
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
+SpellCheck: LiDAR, lidR

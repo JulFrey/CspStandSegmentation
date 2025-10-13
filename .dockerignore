@@ -1,0 +1,17 @@
+.git
+.Rproj.user
+.Rhistory
+.RData
+.Rbuildignore
+.Rcheck
+*.tar.gz
+*.pdf
+*.zip
+*.Rproj
+*.o
+*.so
+*.dll
+.vscode
+__pycache__
+data/
+tests/testthat/_snaps/
