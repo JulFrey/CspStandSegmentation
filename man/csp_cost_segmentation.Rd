@@ -63,7 +63,7 @@ cloud receive the TreeID from their parent voxel.
 \examples{
 
 # read example data
-\dontrun{
+\donttest{
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 las = lidR::readTLSLAS(file)
 

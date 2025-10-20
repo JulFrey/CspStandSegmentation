@@ -24,7 +24,7 @@ the plot with the inventory results
 Function to plot the inventory results into a lidR 3d plot of the point cloud
 }
 \examples{
-\dontrun{
+\donttest{
 x <- lidR::plot(segmented, color = "TreeID")
 plot_inventory(x, inventory)
 }

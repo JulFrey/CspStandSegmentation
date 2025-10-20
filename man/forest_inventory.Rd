@@ -36,7 +36,7 @@ a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 This function estimates a taper curve for evry tree and returns the DBH at 1.3m, its position in XY coordinates, the tree height and the trees 2D projection area.
 }
 \examples{
-\dontrun{
+\donttest{
 # read example data
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 las = lidR::readTLSLAS(file)

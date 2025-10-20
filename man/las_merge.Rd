@@ -25,7 +25,7 @@ las2 <- lidR::LAS(data.frame(X = runif(100) + 2, Y = runif(100), Z = runif(100))
 las3 <- lidR::LAS(data.frame(X = runif(100) + 4, Y = runif(100), Z = runif(100)))
 merged <- las_merge(las1, las2, las3)
 str(merged)
-\dontrun{
+\donttest{
 merged |> lidR::plot(color = "oci")
 }
 

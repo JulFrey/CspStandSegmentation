@@ -29,7 +29,7 @@ file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 las = lidR::readTLSLAS(file)
 
 las <- add_voxel_coordinates(las,res = 1)
-\dontrun{
+\donttest{
 lidR::plot(las, color = 'z_vox')
 }
 }

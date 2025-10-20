@@ -31,11 +31,11 @@ Presented at the 2016 IEEE Conference on Computer Vision and Pattern
 Recognition (CVPR), IEEE, Las Vegas, NV, USA, pp. 1610-1618.
 }
 \examples{
-\dontrun{
-LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
+\donttest{
+LASfile <- system.file("extdata", "beech.las", package="CspStandSegmentation")
+las <- lidR::readLAS(LASfile, select = "xyz")
 
-las <- add_geometry(las, k = 5, n_cores = parallel::detectCores()-1)
+las <- add_geometry(las, k = 5, n_cores = 2)
 summary(las@data)
 }
 

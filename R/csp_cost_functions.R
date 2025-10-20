@@ -20,11 +20,11 @@
 #' attached to it in the LAS@data section.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @examples
-#' \dontrun{
-#' LASfile <- system.file("extdata", "MixedConifer.laz", package="lidR")
-#' las <- lidR::readLAS(LASfile, select = "xyz", filter = "-inside 481250 3812980 481300 3813030")
+#' \donttest{
+#' LASfile <- system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' las <- lidR::readLAS(LASfile, select = "xyz")
 #'
-#' las <- add_geometry(las, k = 5, n_cores = parallel::detectCores()-1)
+#' las <- add_geometry(las, k = 5, n_cores = 2)
 #' summary(las@data)
 #' }
 #'
@@ -70,7 +70,7 @@ add_geometry <- function(las, k = 10L, n_cores = 1) {
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
 #' vox <- las |> voxelize_points_mean_attributes(1)
-#' \dontrun{
+#' \donttest{
 #' vox |> lidR::plot(color = 'X_gr')
 #' }
 #' @export voxelize_points_mean_attributes
@@ -134,7 +134,7 @@ voxelize_points_mean_attributes <- function(las, res) {
 #' las = lidR::readTLSLAS(file)
 #'
 #' las <- add_voxel_coordinates(las,res = 1)
-#' \dontrun{
+#' \donttest{
 #' lidR::plot(las, color = 'z_vox')
 #' }
 #' @export add_voxel_coordinates
@@ -258,7 +258,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
   # build graph
   vox_graph <- adjacency_df |>
-    igraph::graph_from_data_frame(directed = F) |>
+    igraph::graph_from_data_frame(directed = FALSE) |>
     igraph::simplify()
 
   # calculate a distance (weight) graph per seed using Dijkstra
@@ -274,7 +274,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   unreachable <- which(sapply(dists_list,function(x) is.character(x[[1]])))
   if(length(unreachable) > 0) {
     warning('Not all base positions could be reached by the graph. Try a lower resolution or a different approach to find tree base positions. Error messages for the unreachable TreeIDs:')
-    warning(paste0(unreachable , paste(":",paste(dists_list[unreachable]), collapse = " "), "\n"), call. = F)
+    warning(paste0(unreachable , paste(":",paste(dists_list[unreachable]), collapse = " "), "\n"), call. = FALSE)
     seeds <- seeds[-unreachable,]
     dists_list <- dists_list[-unreachable]
     }
@@ -284,7 +284,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 
   # get seed with minimum distance
   min_matrix <- apply(dist_matrix, 1, which.min)
-  min_dist_matrix <- suppressWarnings(apply(dist_matrix, 1, min, na.rm = T))
+  min_dist_matrix <- suppressWarnings(apply(dist_matrix, 1, min, na.rm = TRUE))
   min_matrix <- data.table::data.table(PointID = as.integer(igraph::V(vox_graph)$name), TreeID = seeds$TreeID[as.integer(min_matrix)], dist = min_dist_matrix)
   min_matrix$TreeID[min_dist_matrix == Inf] <- 0 # set SeedIDs 0 for voxels which any seed can't reach
 
@@ -346,7 +346,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' @examples
 #'
 #' # read example data
-#' \dontrun{
+#' \donttest{
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
 #'
@@ -501,14 +501,14 @@ find_base_coordinates_raster <- function(las, res = 0.1, zmin = 0.5, zmax = 2, q
   if (!('Zref' %in% names(las@data))) {
     normalized <- F
     las <- las |>
-      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
+      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = FALSE)
     dtm <- lidR::rasterize_terrain(las, 0.5, lidR::tin())
     las <- las |> lidR::normalize_height(lidR::tin(), dtm = dtm)
   }
   slice <- las |>  lidR::filter_poi(Z > zmin & Z < zmax)
   density <- lidR::pixel_metrics(slice, length(Z), res = res)
   height <- lidR::pixel_metrics(slice, mean(Z), res = res)
-  q_dens <- quantile(terra::values(density), probs = q, na.rm = T)
+  q_dens <- quantile(terra::values(density), probs = q, na.rm = TRUE)
   seed_rast <- terra::as.points(density > q_dens)
   seed_rast <- as.data.frame(terra::subset(seed_rast, seed_rast$V1 == 1), geom = "XY")
   seed_rast <- cbind(seed_rast, data.frame(cluster = dbscan::dbscan(seed_rast[,c("x", "y")], eps = eps, minPts = 1)$cluster))
@@ -563,7 +563,7 @@ find_base_coordinates_geom <- function(las, zmin = 0.5, zmax = 2, res = 0.5, min
   Zref <- T # flag if a normalized point cloud was given
   if (!('Zref' %in% names(las@data))) {
     las <- las |>
-      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = F)
+      lidR::classify_ground(lidR::csf(class_threshold = 0.05, cloth_resolution = 0.05), last_returns = FALSE)
     dtm <- lidR::rasterize_terrain(las, 0.5, lidR::tin())
     las <- las |> lidR::normalize_height(lidR::tin(), dtm = dtm)
     Zref <- F

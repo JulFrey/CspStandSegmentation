@@ -71,16 +71,16 @@ if(!dir.exists(paste0(base_dir,"segmentation_tiles/"))) {
 }
 
 uls = lidR::readTLSLAScatalog(paste0(base_dir,las_file), select = "XYZ0", chunk_size = chunk_size, chunk_buffer = chunk_buffer)
-plot(uls, chunk_pattern = T)
-# plot(dtm,add = T)
-# sf::as_Spatial(sf::st_as_sf(map, coords = c("X", "Y"))) |> plot(add = T)
+plot(uls, chunk_pattern = TRUE)
+# plot(dtm,add = TRUE)
+# sf::as_Spatial(sf::st_as_sf(map, coords = c("X", "Y"))) |> plot(add = TRUE)
 
 opt_output_files(uls) <- paste0(base_dir,"segmentation_tiles/{ID}")
 segmented <- catalog_apply(uls, function(cluster) {
   
   las <- suppressWarnings(readLAS(cluster)) # read files
   if (is.empty(las) ) return(NULL) # stop if empty
-  print(str(cluster))
+  message(str(cluster))
   # find tree positions as starting points for segmentation
   map <- CspStandSegmentation::find_base_coordinates_raster(las)
   

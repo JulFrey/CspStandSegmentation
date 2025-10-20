@@ -121,7 +121,7 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
@@ -173,7 +173,7 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
   for(i in 1:length(IDs)){
     las_list[[i]] <- lidR::filter_poi(las, TreeID == IDs[i])
   }
-  print("Fit a DBH value to every tree:")
+  message("Fit a DBH value to every tree:")
   # require(foreach)
   cl = parallel::makeCluster(n_cores)
   doParallel::registerDoParallel(cl)
@@ -282,7 +282,7 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
   heights <- aggregate(las@data$Z, by = list(las@data$TreeID),
                        FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
-  print("Tree heights calculated.")
+  message("Tree heights calculated.")
   convhull_area <- function(xy) {
     xy <- as.data.frame(xy)
     if (nrow(xy) < 3) {
@@ -293,7 +293,7 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
                                        head(xy[ch, 2], 1)) - c(tail(xy[ch, 1], -1), head(xy[ch,
                                                                                             1], 1)) * xy[ch, 2])))
   }
-  print("Calculating convex hull areas.")
+  message("Calculating convex hull areas.")
   pb = txtProgressBar(min = 0, max = length(IDs), initial = 0,
                       style = 3)
   i <- 1
@@ -352,7 +352,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 
   t1 <- Sys.time()
   IDs <- unique(dbh_slice$TreeID)
-  print("Fit a DBH value to every tree:")
+  message("Fit a DBH value to every tree:")
   las_list <- list()
   for(i in 1:length(IDs)) {
     las_list[[i]] <- lidR::filter_poi(las, TreeID == IDs[i])
@@ -387,7 +387,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
                        FUN = function(x) max(x) - min(x))
   names(heights) <- c("TreeID", "Height")
   heights$TreeID <- as.numeric(heights$TreeID)
-  print("Tree heights calculated.")
+  message("Tree heights calculated.")
   convhull_area <- function(xy) {
     xy <- as.data.frame(xy)
     if (nrow(xy) < 3) {
@@ -398,7 +398,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
                                        head(xy[ch, 2], 1)) - c(tail(xy[ch, 1], -1), head(xy[ch,
                                                                                             1], 1)) * xy[ch, 2])))
   }
-  print("Calculating convex hull areas.")
+  message("Calculating convex hull areas.")
   pb = txtProgressBar(min = 0, max = length(IDs), initial = 0,
                       style = 3)
   i <- 1
@@ -429,7 +429,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #' @param col color of the spheres
 #' @return the plot with the inventory results
 #' @examples
-#' \dontrun{
+#' \donttest{
 #' x <- lidR::plot(segmented, color = "TreeID")
 #' plot_inventory(x, inventory)
 #' }

@@ -15,7 +15,7 @@
 #' las3 <- lidR::LAS(data.frame(X = runif(100) + 4, Y = runif(100), Z = runif(100)))
 #' merged <- las_merge(las1, las2, las3)
 #' str(merged)
-#' \dontrun{
+#' \donttest{
 #' merged |> lidR::plot(color = "oci")
 #' }
 #'
@@ -45,7 +45,7 @@ las_merge <- function(..., oci = TRUE, fill = FALSE){
   # rbind all data by the minimum set of columns
   las_1 <- las_list[[1]]
   if(fill){
-    las_1@data <- data.table::rbindlist(lapply(las_list, function(x) x@data), fill = T)
+    las_1@data <- data.table::rbindlist(lapply(las_list, function(x) x@data), fill = TRUE)
   } else {
     # build a minimum set of columns
     cols <- lapply(las_list, function(x) colnames(x@data))

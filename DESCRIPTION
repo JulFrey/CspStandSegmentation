@@ -6,10 +6,7 @@ Authors@R: c(
   person("Julian", "Frey", email = "julian.frey@wwd.uni-freiburg.de", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7895-702X")),
   person("Zoe", "Schindler", email = "zoe.schindler@wwd.uni-freiburg.de", role = c("ctb"), comment = c(ORCID = "0000-0003-2972-1920"))
   )
-Description: We provide functionality to segment single trees from a 
-  forest stand scanned with proximate (e.g. terrestrial or mobile) laser scanning. 
-  It strongly builds upon the lidR package. It provides the full workflow from a 
-  raw point cloud to a full tabular forest inventory.  
+Description: Functionality for segmenting individual trees from a forest stand scanned with a close-range (e.g., terrestrial or mobile) laser scanner. The complete workflow from a raw point cloud to a complete tabular forest inventory is provided. The package contains several algorithms for detecting tree bases and a graph-based algorithm to attach all remaining points to these tree bases. It builds heavily on the 'lidR' package. A description of the segmentation algorithm can be found in Larysch et al. (2025) <doi:10.1007/s10342-025-01796-z>.
 URL: https://github.com/JulFrey/CspStandSegmentation
 BugReports: https://github.com/JulFrey/CspStandSegmentation/issues
 License: GPL-3

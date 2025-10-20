@@ -4,7 +4,7 @@
 \alias{fds}
 \title{Farthest Distance Sampling (Farthest Point Sampling)}
 \usage{
-fds(mat, n, ret = "idx", scale = F)
+fds(mat, n, ret = "idx", scale = FALSE)
 }
 \arguments{
 \item{mat}{a matrix of points with one row for each point and one column for each dimension, can also be a las object then only XYZ will be used}
@@ -26,7 +26,7 @@ This version is memory efficient and can handle large matrices.
 mat <- matrix(rnorm(1000), ncol = 10)
 sample <- fds(mat, 50, ret = "mat")
 str(sample)
-\dontrun{
+\donttest{
   plot(mat, col = "black", pch = 19)
   points(sample, col = "red", pch = 19)
 }
