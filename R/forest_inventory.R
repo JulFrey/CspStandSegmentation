@@ -131,14 +131,14 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #'
 #' # segment trees
 #' segmented <- las |>
-#'   CspStandSegmentation::add_geometry(n_cores = parallel::detectCores()/2) |>
-#'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
+#'   CspStandSegmentation::add_geometry(n_cores = 2) |>
+#'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = 2)
 #'
 #' # show results
-#' lidR::plot(segmented, color = "TreeID")
+#' #lidR::plot(segmented, color = "TreeID")
 #'
 #' # perform inventory
-#' inventory <- CspStandSegmentation::forest_inventory(segmented)
+#' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
 #' }
 #' @export forest_inventory
 forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1))) {
@@ -430,8 +430,22 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #' @return the plot with the inventory results
 #' @examples
 #' \donttest{
-#' x <- lidR::plot(segmented, color = "TreeID")
-#' plot_inventory(x, inventory)
+#' #' # read example data
+#' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+#' las = lidR::readTLSLAS(file)
+#'
+#' # find tree positions as starting points for segmentation
+#' map <- CspStandSegmentation::find_base_coordinates_raster(las)
+#'
+#' # segment trees
+#' segmented <- las |>
+#'   CspStandSegmentation::add_geometry(n_cores = 2) |>
+#'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = 2)
+#'
+#' # perform inventory
+#' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
+#' #x <- lidR::plot(segmented, color = "TreeID")
+#' #plot_inventory(x, inventory)
 #' }
 #'
 #' @export plot_inventory

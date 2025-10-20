@@ -46,13 +46,13 @@ map <- CspStandSegmentation::find_base_coordinates_raster(las)
 
 # segment trees
 segmented <- las |>
-  CspStandSegmentation::add_geometry(n_cores = parallel::detectCores()/2) |>
-  CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = parallel::detectCores()/2)
+  CspStandSegmentation::add_geometry(n_cores = 2) |>
+  CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = 2)
 
 # show results
-lidR::plot(segmented, color = "TreeID")
+#lidR::plot(segmented, color = "TreeID")
 
 # perform inventory
-inventory <- CspStandSegmentation::forest_inventory(segmented)
+inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
 }
 }

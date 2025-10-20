@@ -54,10 +54,10 @@ p_mat_dist <- function(mat, p){
 #' mat <- matrix(rnorm(1000), ncol = 10)
 #' sample <- fds(mat, 50, ret = "mat")
 #' str(sample)
-#' \donttest{
-#'   plot(mat, col = "black", pch = 19)
-#'   points(sample, col = "red", pch = 19)
-#' }
+#'
+#'  #plot(mat, col = "black", pch = 19)
+#'  #points(sample, col = "red", pch = 19)
+#'
 fds <- function(mat, n, ret = "idx", scale = FALSE){
   # check the inputs
   was_las <- FALSE

@@ -25,8 +25,22 @@ Function to plot the inventory results into a lidR 3d plot of the point cloud
 }
 \examples{
 \donttest{
-x <- lidR::plot(segmented, color = "TreeID")
-plot_inventory(x, inventory)
+#' # read example data
+file = system.file("extdata", "beech.las", package="CspStandSegmentation")
+las = lidR::readTLSLAS(file)
+
+# find tree positions as starting points for segmentation
+map <- CspStandSegmentation::find_base_coordinates_raster(las)
+
+# segment trees
+segmented <- las |>
+  CspStandSegmentation::add_geometry(n_cores = 2) |>
+  CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = 2)
+
+# perform inventory
+inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
+#x <- lidR::plot(segmented, color = "TreeID")
+#plot_inventory(x, inventory)
 }
 
 }

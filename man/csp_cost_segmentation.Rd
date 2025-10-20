@@ -75,7 +75,7 @@ CspStandSegmentation::add_geometry() |>
 CspStandSegmentation::csp_cost_segmentation(map, 1)
 
 
-lidR::plot(segmented, color = "TreeID")
+#lidR::plot(segmented, color = "TreeID")
 }
 
 }

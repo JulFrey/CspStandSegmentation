@@ -70,9 +70,9 @@ add_geometry <- function(las, k = 10L, n_cores = 1) {
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
 #' vox <- las |> voxelize_points_mean_attributes(1)
-#' \donttest{
-#' vox |> lidR::plot(color = 'X_gr')
-#' }
+#'
+#' #vox |> lidR::plot(color = 'X_gr')
+#'
 #' @export voxelize_points_mean_attributes
 voxelize_points_mean_attributes <- function(las, res) {
   # check if inputs of the right type
@@ -134,9 +134,9 @@ voxelize_points_mean_attributes <- function(las, res) {
 #' las = lidR::readTLSLAS(file)
 #'
 #' las <- add_voxel_coordinates(las,res = 1)
-#' \donttest{
-#' lidR::plot(las, color = 'z_vox')
-#' }
+#'
+#' #lidR::plot(las, color = 'z_vox')
+#'
 #' @export add_voxel_coordinates
 add_voxel_coordinates <- function(las, res) {
   # check if inputs of the right type
@@ -358,7 +358,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' CspStandSegmentation::csp_cost_segmentation(map, 1)
 #'
 #'
-#' lidR::plot(segmented, color = "TreeID")
+#' #lidR::plot(segmented, color = "TreeID")
 #' }
 #'
 #' @export csp_cost_segmentation

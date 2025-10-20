@@ -26,9 +26,9 @@ including the XYZ-coordinates.
 file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 las = lidR::readTLSLAS(file)
 vox <- las |> voxelize_points_mean_attributes(1)
-\donttest{
-vox |> lidR::plot(color = 'X_gr')
-}
+
+#vox |> lidR::plot(color = 'X_gr')
+
 }
 \seealso{
 \code{\link[lidR]{voxelize_points}}
