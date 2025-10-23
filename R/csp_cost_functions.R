@@ -71,7 +71,6 @@ add_geometry <- function(las, k = 10L, n_cores = 1) {
 #' las = lidR::readTLSLAS(file)
 #' vox <- las |> voxelize_points_mean_attributes(1)
 #'
-#' #vox |> lidR::plot(color = 'X_gr')
 #'
 #' @export voxelize_points_mean_attributes
 voxelize_points_mean_attributes <- function(las, res) {
@@ -135,7 +134,6 @@ voxelize_points_mean_attributes <- function(las, res) {
 #'
 #' las <- add_voxel_coordinates(las,res = 1)
 #'
-#' #lidR::plot(las, color = 'z_vox')
 #'
 #' @export add_voxel_coordinates
 add_voxel_coordinates <- function(las, res) {
@@ -352,13 +350,13 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #'
 #' # Find tree positions as starting points for segmentation
 #' map <- CspStandSegmentation::find_base_coordinates_raster(las)
+#'
 #' # segment trees
 #' segmented <- las |>
 #' CspStandSegmentation::add_geometry() |>
-#' CspStandSegmentation::csp_cost_segmentation(map, 1)
+#' CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
 #'
 #'
-#' #lidR::plot(segmented, color = "TreeID")
 #' }
 #'
 #' @export csp_cost_segmentation

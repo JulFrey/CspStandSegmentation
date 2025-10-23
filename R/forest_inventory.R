@@ -134,9 +134,6 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #'   CspStandSegmentation::add_geometry(n_cores = 2) |>
 #'   CspStandSegmentation::csp_cost_segmentation(map, 1, N_cores = 2)
 #'
-#' # show results
-#' #lidR::plot(segmented, color = "TreeID")
-#'
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
 #' }
@@ -430,7 +427,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #' @return the plot with the inventory results
 #' @examples
 #' \donttest{
-#' #' # read example data
+#' # read example data
 #' file = system.file("extdata", "beech.las", package="CspStandSegmentation")
 #' las = lidR::readTLSLAS(file)
 #'
@@ -444,8 +441,8 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #'
 #' # perform inventory
 #' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
-#' #x <- lidR::plot(segmented, color = "TreeID")
-#' #plot_inventory(x, inventory)
+#' x <- lidR::plot(segmented, color = "TreeID")
+#' plot_inventory(x, inventory)
 #' }
 #'
 #' @export plot_inventory

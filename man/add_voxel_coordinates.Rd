@@ -30,7 +30,6 @@ las = lidR::readTLSLAS(file)
 
 las <- add_voxel_coordinates(las,res = 1)
 
-#lidR::plot(las, color = 'z_vox')
 
 }
 \author{

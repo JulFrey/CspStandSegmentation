@@ -16,7 +16,6 @@
 #' merged <- las_merge(las1, las2, las3)
 #' str(merged)
 #'
-#' #merged |> lidR::plot(color = "oci")
 #'
 #' @export las_merge
 las_merge <- function(..., oci = TRUE, fill = FALSE){

@@ -69,13 +69,13 @@ las = lidR::readTLSLAS(file)
 
 # Find tree positions as starting points for segmentation
 map <- CspStandSegmentation::find_base_coordinates_raster(las)
+
 # segment trees
 segmented <- las |>
 CspStandSegmentation::add_geometry() |>
-CspStandSegmentation::csp_cost_segmentation(map, 1)
+CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
 
 
-#lidR::plot(segmented, color = "TreeID")
 }
 
 }

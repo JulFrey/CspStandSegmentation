@@ -27,7 +27,5 @@ mat <- matrix(rnorm(1000), ncol = 10)
 sample <- fds(mat, 50, ret = "mat")
 str(sample)
 
- #plot(mat, col = "black", pch = 19)
- #points(sample, col = "red", pch = 19)
 
 }

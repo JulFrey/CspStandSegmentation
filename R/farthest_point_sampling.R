@@ -55,8 +55,6 @@ p_mat_dist <- function(mat, p){
 #' sample <- fds(mat, 50, ret = "mat")
 #' str(sample)
 #'
-#'  #plot(mat, col = "black", pch = 19)
-#'  #points(sample, col = "red", pch = 19)
 #'
 fds <- function(mat, n, ret = "idx", scale = FALSE){
   # check the inputs
