@@ -443,7 +443,7 @@ forest_inventory_simple <- function (las, slice_min = 1.2, slice_max = 1.4, max_
 #' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
 #'
 #' # plot the results
-#' \donotrun{
+#' \dontrun{
 #' x <- lidR::plot(segmented, color = "TreeID")
 #' plot_inventory(x, inventory)
 #' }

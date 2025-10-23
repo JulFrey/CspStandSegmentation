@@ -39,8 +39,12 @@ segmented <- las |>
 
 # perform inventory
 inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
+
+# plot the results
+\dontrun{
 x <- lidR::plot(segmented, color = "TreeID")
 plot_inventory(x, inventory)
+}
 }
 
 }
