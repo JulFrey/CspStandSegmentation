@@ -11,7 +11,8 @@ csp_cost_segmentation(
   V_w = 0,
   L_w = 0,
   S_w = 0,
-  N_cores = 1
+  N_cores = 1,
+  N_trees = 1
 )
 }
 \arguments{
@@ -37,6 +38,8 @@ leaves).}
 
 \item{N_cores}{number of CPU cores used for parallel routing using the
 foreach package.}
+
+\item{N_trees}{The number of closest stem locations to add to the point cloud}
 }
 \value{
 Returns a copy of the las point cloud with an additional field for

@@ -233,6 +233,8 @@ add_las_attributes <- function(las) {
 #' @param Voxel_size Edge length used to create the voxels. This is only
 #' important to gain comparable distance weights on different voxel sizes.
 #' Should be greater than 0.
+#' @param N_trees The number of closest stem locations to add to the point cloud
+#' If > 1 the distances will be added as well.
 #' @return voxels with the TreeID in the data slot
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
 #' @seealso \code{\link{csp_cost_segmentation}}
@@ -240,11 +242,11 @@ add_las_attributes <- function(las) {
 #' @importFrom foreach %dopar% foreach
 #'
 #' @export comparative_shortest_path
-comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size) {
+comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size, N_trees = 1) {
 
   # update weights
   adjacency_df$weight <- with(vox@data[adjacency_df$adjacency_list], adjacency_df$weight^2 + ((1 - Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
-  adjacency_df$weight[adjacency_df$weight < 0] <- 0.001 * Voxel_size # catch negative weights
+  adjacency_df$weight[adjacency_df$weight < 0] <- 0.00001 * Voxel_size # catch negative weights
 
   # set distances to seeds 0
   adjacency_df$weight[adjacency_df$adjacency_list_id %in% seeds$SeedID] <- 0
@@ -280,16 +282,49 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   # Combine to matrix
   dist_matrix <- simplify2array(dists_list)[1,,]
 
+  #helper function to get the indices of the n smalest values
+  .which_n_min <- function(x, n){
+    return(order(x)[1:n])
+  }
+  .n_min <- function(x, n, na.val = 9999){
+    m <- x[order(x)[1:n]]
+    m[is.na(m)] <- na.val
+    return(m)
+  }
+
   # get seed with minimum distance
-  min_matrix <- apply(dist_matrix, 1, which.min)
-  min_dist_matrix <- suppressWarnings(apply(dist_matrix, 1, min, na.rm = TRUE))
-  min_matrix <- data.table::data.table(PointID = as.integer(igraph::V(vox_graph)$name), TreeID = seeds$TreeID[as.integer(min_matrix)], dist = min_dist_matrix)
-  min_matrix$TreeID[min_dist_matrix == Inf] <- 0 # set SeedIDs 0 for voxels which any seed can't reach
+  #min_matrix_old <- apply(dist_matrix, 1, which.min)
+  min_matrix <- t(apply(dist_matrix, 1, .which_n_min, n = N_trees))
+  #min_dist_matrix_old <- apply(dist_matrix, 1, min, na.rm = TRUE)
+  min_dist_matrix <- t(apply(dist_matrix, 1, .n_min, n = N_trees))
+
+  tree_id_matrix <- apply(min_matrix,2,function(x) seeds$TreeID[as.integer(x)] )
+  tree_id_matrix <- data.table::as.data.table(tree_id_matrix)
+  min_dist_matrix <- data.table::as.data.table(min_dist_matrix)
+
+  if(N_trees == 1){
+    tree_id_matrix <- tree_id_matrix
+    min_dist_matrix <- t(min_dist_matrix)
+    colnames(tree_id_matrix) <- "TreeID"
+    colnames(min_dist_matrix) <- "dist"
+  } else {
+    colnames(tree_id_matrix) <- paste0("TreeID", c("",2:ncol(tree_id_matrix)))
+    colnames(min_dist_matrix) <- paste0("dist", c("",2:ncol(min_dist_matrix)))
+  }
+
+
+  #min_matrix <- data.table::data.table(PointID = as.integer(igraph::V(vox_graph)$name), TreeID = seeds$TreeID[as.integer(min_matrix)], dist = min_dist_matrix)
+  #min_matrix$TreeID[min_dist_matrix == Inf] <- 0 # set SeedIDs 0 for voxels which any seed can't reach
+  min_matrix <- cbind(PointID = as.integer(igraph::V(vox_graph)$name), tree_id_matrix, min_dist_matrix) |> data.table::as.data.table()
+  # replace all TreeIDs where dist is Inf with 0
+  for(i in 1:N_trees){
+    min_matrix[[paste0("TreeID", ifelse(i == 1, "", i))]][min_matrix[[paste0("dist", ifelse(i == 1, "", i))]] == Inf] <- 0
+  }
 
   # assign voxels to seeds (minimum cost/distance to trunk)
   vox <- vox |>
-    remove_lasattribute('TreeID') |>
-    add_attribute(as.integer(rownames(vox@data)), 'PointID')
+    lidR::remove_lasattribute('TreeID') |>
+    lidR::add_attribute(as.integer(rownames(vox@data)), 'PointID')
   vox@data <- merge(vox@data, min_matrix, by = 'PointID')
   return(vox)
 }
@@ -336,6 +371,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' leaves).
 #' @param N_cores number of CPU cores used for parallel routing using the
 #' foreach package.
+#' @param N_trees The number of closest stem locations to add to the point cloud
 #' @return Returns a copy of the las point cloud with an additional field for
 #' the TreeID.
 #' @author Julian Frey <julian.frey@@wwd.uni-freiburg.de>
@@ -360,7 +396,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
 #' }
 #'
 #' @export csp_cost_segmentation
-csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1) {
+csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, S_w = 0, N_cores = 1, N_trees = 1) {
 
   # if map is a LAS object, extract tree positions
   if (lidR::is(map,"LAS")) {
@@ -457,11 +493,12 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   rm(adjacency_list, adjacency_list_id, dists_vec, neighborhood_list)
 
   # Calculate CSP, including the weights
-  vox2 <- comparative_shortest_path(vox = vox, adjacency_df = adjacency_df, v_w = V_w, l_w = L_w, s_w = S_w, Voxel_size = Voxel_size, N_cores = N_cores, seeds = tree_seeds)
+  vox2 <- comparative_shortest_path(vox = vox, adjacency_df = adjacency_df, v_w = V_w, l_w = L_w, s_w = S_w, Voxel_size = Voxel_size, N_cores = N_cores, seeds = tree_seeds, N_trees = N_trees)
 
   las <- las |>
     add_voxel_coordinates(Voxel_size)
-  las@data <- merge(las@data, vox2@data[,c('X', 'Y', 'Z', 'TreeID')], by.x = c('x_vox', 'y_vox', 'z_vox'), by.y = c('X', 'Y', 'Z'))
+  vox_cols <- c('X', 'Y', 'Z', grepv("TreeID",colnames(vox2@data)), grepv("dist",colnames(vox2@data)) )
+  las@data <- merge(las@data, vox2@data[,vox_cols, with = FALSE], by.x = c('x_vox', 'y_vox', 'z_vox'), by.y = c('X', 'Y', 'Z'))
   las <- add_las_attributes(las)
   return(las)
 }

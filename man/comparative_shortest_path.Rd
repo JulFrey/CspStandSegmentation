@@ -12,7 +12,8 @@ comparative_shortest_path(
   l_w = 0,
   s_w = 0,
   N_cores = parallel::detectCores() - 1,
-  Voxel_size
+  Voxel_size,
+  N_trees = 1
 )
 }
 \arguments{
@@ -33,6 +34,9 @@ function (which requires reshaping the data).}
 \item{Voxel_size}{Edge length used to create the voxels. This is only
 important to gain comparable distance weights on different voxel sizes.
 Should be greater than 0.}
+
+\item{N_trees}{The number of closest stem locations to add to the point cloud
+If > 1 the distances will be added as well.}
 }
 \value{
 voxels with the TreeID in the data slot
