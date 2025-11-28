@@ -4,10 +4,10 @@
 \alias{las_merge}
 \title{Makes one las-object from multiple las-objects}
 \usage{
-las_merge(..., oci = TRUE, fill = FALSE)
+las_merge(..., oci = FALSE, fill = FALSE)
 }
 \arguments{
-\item{...}{any number of las objects}
+\item{...}{any number of las objects or a list with las objects}
 
 \item{oci}{add a column with the original cloud index}
 
@@ -20,11 +20,16 @@ A single las-object with only the overlapping column name
 This function merges multiple las objects into one las object. The function checks if all inputs are las-objects and if they have the same CRS. The function will also add a column oci with the original cloud index to each las-object. The function will then rbind all data by the minimum set of columns. If the fill argument is set to False, columns which do not exist in all las objects will be removed. If the fill argument is set to True, missing columns will be filled with NA.
 }
 \examples{
-las1 <- lidR::LAS(data.frame(X = runif(100), Y = runif(100), Z = runif(100)))
-las2 <- lidR::LAS(data.frame(X = runif(100) + 2, Y = runif(100), Z = runif(100)))
-las3 <- lidR::LAS(data.frame(X = runif(100) + 4, Y = runif(100), Z = runif(100)))
+# number of points per las
+n <- 100
+las1 <- lidR::LAS(data.frame(X = runif(n), Y = runif(n), Z = runif(n)))
+las2 <- lidR::LAS(data.frame(X = runif(n) + 2, Y = runif(n), Z = runif(n)))
+las3 <- lidR::LAS(data.frame(X = runif(n) + 4, Y = runif(n), Z = runif(n)))
 merged <- las_merge(las1, las2, las3)
-str(merged)
+lidR::npoints(merged) == (n*3)
 
+lasList <- list(las1,las2,las3)
+merged <- las_merge(lasList)
+lidR::npoints(merged) == (n*3)
 
 }

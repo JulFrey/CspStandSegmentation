@@ -10,12 +10,17 @@
 #' @returns A single las-object with only the overlapping column name
 #'
 #' @examples
-#' las1 <- lidR::LAS(data.frame(X = runif(100), Y = runif(100), Z = runif(100)))
-#' las2 <- lidR::LAS(data.frame(X = runif(100) + 2, Y = runif(100), Z = runif(100)))
-#' las3 <- lidR::LAS(data.frame(X = runif(100) + 4, Y = runif(100), Z = runif(100)))
+#' # number of points per las
+#' n <- 100
+#' las1 <- lidR::LAS(data.frame(X = runif(n), Y = runif(n), Z = runif(n)))
+#' las2 <- lidR::LAS(data.frame(X = runif(n) + 2, Y = runif(n), Z = runif(n)))
+#' las3 <- lidR::LAS(data.frame(X = runif(n) + 4, Y = runif(n), Z = runif(n)))
 #' merged <- las_merge(las1, las2, las3)
-#' str(merged)
+#' lidR::npoints(merged) == (n*3)
 #'
+#' lasList <- list(las1,las2,las3)
+#' merged <- las_merge(lasList)
+#' lidR::npoints(merged) == (n*3)
 #'
 #' @export las_merge
 las_merge <- function(..., oci = FALSE, fill = FALSE){
@@ -67,9 +72,6 @@ las_merge <- function(..., oci = FALSE, fill = FALSE){
       las_1@header@VLR$Extra_Bytes$`Extra Bytes Description`[[i]] <- NULL
     }
   }
-
-  return(las_1)
-}
 
   # quantize the data
   las_1 <- las_1 |> lidR::las_quantize() |> lidR::las_update()
