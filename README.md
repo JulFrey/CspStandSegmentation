@@ -9,7 +9,12 @@ Authors: Julian Frey and Zoe Schindler, University of Freiburg, Chair of Forest 
 
 
 ## Installation
+We are on CRAN 🎉🥳 you can install the packe in R the simple way:
+```R
+install.packages("CspStandSegmentation")
+```
 
+### Latest version from GitHub:
 If you are working on Windows operating systems, you will need to install Rtools prior to installation: https://cran.r-project.org/bin/windows/Rtools/>. On Mac, Xcode is required. 
 
 ```R
