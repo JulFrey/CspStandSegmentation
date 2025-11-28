@@ -497,7 +497,7 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
 
   las <- las |>
     add_voxel_coordinates(Voxel_size)
-  vox_cols <- c('X', 'Y', 'Z', grepv("TreeID",colnames(vox2@data)), grepv("dist",colnames(vox2@data)) )
+  vox_cols <- c('X', 'Y', 'Z', grep("TreeID",colnames(vox2@data), value = TRUE), grep("dist",colnames(vox2@data), value = TRUE) )
   las@data <- merge(las@data, vox2@data[,vox_cols, with = FALSE], by.x = c('x_vox', 'y_vox', 'z_vox'), by.y = c('X', 'Y', 'Z'))
   las <- add_las_attributes(las)
   return(las)
