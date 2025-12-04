@@ -6,9 +6,9 @@
 \usage{
 ransac_circle_fit(
   data,
-  n_iterations = 1000,
+  n_iterations = 1000L,
   distance_threshold = 0.01,
-  min_inliers = 3
+  min_inliers = 3L
 )
 }
 \arguments{
