@@ -377,7 +377,7 @@ forest_inventory_simple <- function(las, slice_min = 1.2, slice_max = 1.4, max_d
   dbh_slice@data <- dt
 
   # Compute mean Zdiff per TreeID
-  tree_pos_height <<- dbh_slice@data[
+  tree_pos_height <- dbh_slice@data[
     , .(Z = mean(Zdiff, na.rm = TRUE)),  # use na.rm = TRUE if needed
     by = TreeID
   ]
