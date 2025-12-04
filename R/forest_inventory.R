@@ -52,58 +52,105 @@ suppress_cat <- function(f, ...) {
 #' angle_segs: number of populated 10deg angular segments of the circle using the distance_threshold
 #' n_iter: number of iterations run
 #' @export ransac_circle_fit
-ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.01, min_inliers = 3) {
+ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.01,min_inliers = 3L) {
+  # Ensure matrix
+  data <- as.matrix(data)
+  n <- nrow(data)
+
   # catch if less than 3 points are given
-  if (nrow(data) < 3) {
-    return(list(circle = c(mean(data[,1]), mean(data[,2]), NA), inliers = NA, angle_segs = NA, n_iter = 0))
+  if (n < 3L) {
+    return(list(circle      = c(mean(data[, 1]), mean(data[, 2]), NA_real_),
+                inliers     = NA_integer_,
+                angle_segs  = NA_integer_,
+                n_iter      = 0L))
   }
+
+  # Pre-extract coordinates once
+  x <- data[, 1]
+  y <- data[, 2]
 
   # Initialize best circle
-  best_circle <- NULL
-  best_inliers <- 0
-  best_angle_segs <- 0
-  n_pts_sample <- min(c(5, nrow(data)))
+  best_circle     <- NULL
+  best_inliers    <- 0L
+  best_angle_segs <- 0L
 
-  # calculate point densities in neighborhood
+  # how many points to sample per iteration
+  n_pts_sample <- min(5L, n)
+
+  # point densities for weighted sampling
   p_densities <- dbscan::pointdensity(data, eps = 0.05)
 
+  for (i in seq_len(n_iterations)) {
+    # Randomly sample points (weighted)
+    idx <- sample.int(n, n_pts_sample, prob = p_densities + 1)
+    sample_points <- data[idx, , drop = FALSE]
 
-  for (i in 1:n_iterations) {
-    # Randomly sample 3 points
-    sample_points <- data[sample(1:nrow(data), n_pts_sample, prob = p_densities + 1), ] |> as.matrix()
+    # Fit circle; keep tryCatch very tight and avoid pipe
+    circle <- tryCatch(
+      {
+        CspStandSegmentation::suppress_cat(conicfit::CircleFitByPratt, sample_points)
+      },
+      warning = function(w) NULL,
+      error   = function(e) NULL
+    )
 
-    # Compute circle parameters
-    tryCatch({
-      circle <- suppress_cat(conicfit::CircleFitByPratt, sample_points)
+    # If fit failed, skip iteration
+    if (is.null(circle))
+      next
 
-      # Count inliers
-      distances <- apply(data, 1, point_circle_distance, circle = circle)
-      inliers <- sum(distances < distance_threshold)
-      angle_segs <- length(unique(floor(apply(data, 1, point_center_angle, circle = circle)/10)))
+    cx <- circle[1L]
+    cy <- circle[2L]
+    r  <- circle[3L]
 
-      # # Update best circle if more inliers are found
-      # if (inliers > best_inliers && inliers >= min_inliers) {
-      #   best_circle <- list(circle = circle, inliers = inliers)
-      #   best_inliers <- inliers
-      # }
+    # Vectorised distances: distance from each point to circle
+    # dist_to_center = sqrt((x - cx)^2 + (y - cy)^2)
+    # distance_to_circle = |dist_to_center - r|
+    dx <- x - cx
+    dy <- y - cy
+    dist_to_center <- sqrt(dx*dx + dy*dy)
+    distances <- abs(dist_to_center - r)
 
-      # Update best circle if it has more angle segments and/or inliers
-      if (angle_segs >= best_angle_segs && inliers >= best_inliers) {
-        best_circle <- list(circle = circle, inliers = inliers, angle_segs = angle_segs, n_iter = i)
-        best_angle_segs <- angle_segs
-        best_inliers <- inliers
-      }
+    # Count inliers
+    inlier_mask <- distances < distance_threshold
+    inliers     <- sum(inlier_mask)
 
-      if((best_angle_segs == nrow(data) | best_angle_segs >= 30) ){ #& inliers == nrow(data)
-        break
-      }
+    if (inliers < min_inliers)
+      next
 
-    },
-    warnings = function(w){},
-    error = function(e) {}) |> suppressWarnings()
+    # Vectorised angles only for inliers
+    # atan2 in degrees in [0, 360)
+    ang <- atan2(dy[inlier_mask], dx[inlier_mask]) * 180 / pi
+    ang[ang < 0] <- ang[ang < 0] + 360
+
+    # 10-degree bins
+    angle_segs <- length(unique(floor(ang / 10)))
+
+    # Update best circle if it has more angle segments and/or inliers
+    if (angle_segs > best_angle_segs ||
+        (angle_segs == best_angle_segs && inliers >= best_inliers)) {
+      best_circle     <- list(circle     = circle,
+                              inliers    = inliers,
+                              angle_segs = angle_segs,
+                              n_iter     = i)
+      best_angle_segs <- angle_segs
+      best_inliers    <- inliers
+    }
+
+    # optionally early stop: 36 segments is the max for 10° bins
+    if (best_angle_segs >= 30L) {
+      break
+    }
   }
-  best_circle$n_iter <- i
-  return(best_circle)
+
+  # if no valid circle found, fall back to mean center, NA radius
+  if (is.null(best_circle)) {
+    best_circle <- list(circle     = c(mean(x), mean(y), NA_real_),
+                        inliers    = 0L,
+                        angle_segs = 0L,
+                        n_iter     = 0L)
+  }
+
+  best_circle
 }
 
 #' Function to perform a forest inventory based on a segmented las object (needs to contain TreeID)
