@@ -117,6 +117,8 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' @param width the width of the slices
 #' @param max_dbh the maximum DBH allowed
 #' @param n_cores number of cores to use
+#' @param tree_id_col Column name for the instance segmantation ID (TreeIDs)
+#' @param non_tree_id tree_id_col value for non tree elements (can be a vector of IDs)
 #'
 #' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
@@ -138,7 +140,8 @@ ransac_circle_fit <- function(data, n_iterations = 1000, distance_threshold = 0.
 #' inventory <- CspStandSegmentation::forest_inventory(segmented, n_cores = 2)
 #' }
 #' @export forest_inventory
-forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = 1) {
+#' @import data.table
+forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = 1, tree_id_col = "TreeID", non_tree_id = 0) {
 
   # Temporarily disable data.table progress
   old_opt <- options(datatable.showProgress = FALSE)
@@ -148,12 +151,12 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
   if(width > (increment/2)) {
     stop("Overlapping slices are not allowed. The maximum width is increment*0.5.")
   }
-  if (!"TreeID" %in% names(las)) {
-    stop("The las object does not contain a TreeID attribute")
+  if (!tree_id_col %in% names(las)) {
+    stop("The las object does not contain the tree_id_col attribute")
   }
 
   # remove no Tree elements
-  las <- lidR::filter_poi(las, !is.na(TreeID) & TreeID != non_tree_id)
+  las@data <- las@data[!is.na(get(tree_id_col)) & !(get(tree_id_col) %in% non_tree_id)]
   if ("Zref" %in% names(las)) {
     dbh_slice <- lidR::filter_poi(las, Z > slice_min & Z < slice_max)
     dbh_slice@data$Znorm <- dbh_slice@data$Z
@@ -183,10 +186,10 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
   .na2true <- function(x) ifelse(is.na(x) | is.infinite(x),TRUE, x)
 
   #points_per_stem <- aggregate(dbh_slice$TreeID, by = list(dbh_slice$TreeID),FUN = length)
-  points_per_stem <- dbh_slice@data[,.N,TreeID]
+  points_per_stem <- dbh_slice@data[,.N, by = tree_id_col]
 
   t1 <- Sys.time()
-  IDs <- points_per_stem[N > 3, TreeID]
+  IDs <- points_per_stem[N > 3, ..tree_id_col]
 
   message("Fit a DBH value to every tree:")
 
@@ -279,12 +282,12 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
       DBH   = pars[4L],
       quality_flag = pars[5L]
     )
-  }, by = TreeID, .SDcols = c("X", "Y","Z", "Zref","Znorm", "Planarity", "Verticality")]
+  }, by = tree_id_col, .SDcols = c("X", "Y","Z", "Zref","Znorm", "Planarity", "Verticality")]
 
   message("DBH estimated. Calculating tree heights.")
 
   .Zdif <- function(x) max(x) - min(x)
-  heights <- las@data[,.(Height = .Zdif(Z)), by = TreeID]
+  heights <- las@data[,.(Height = .Zdif(Z)), by = tree_id_col]
   message("Tree heights calculated. Calculating convex hull areas.")
 
   .convex_hull_area <- function(x, y) {
@@ -296,10 +299,10 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
   }
 
   dt <- subset(las@data, Znorm > 0.5)
-  cpa <- dt[, .(ConvexHullArea = .convex_hull_area(X, Y)), by = TreeID]
+  cpa <- dt[, .(ConvexHullArea = .convex_hull_area(X, Y)), by = tree_id_col]
 
-  dbh_results <- merge(dbh_results, heights, by = "TreeID")
-  dbh_results <- merge(dbh_results, cpa, by = "TreeID")
+  dbh_results <- merge(dbh_results, heights, by = tree_id_col)
+  dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
   return(dbh_results)
 }
 
@@ -315,6 +318,7 @@ forest_inventory <- function (las, slice_min = 0.3, slice_max = 4, increment = 0
 #' @return a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
 #' @export forest_inventory_simple
+#' @import data.table
 forest_inventory_simple <- function(las, slice_min = 1.2, slice_max = 1.4, max_dbh = 1, n_cores = max(c(1, parallel::detectCores()/2 - 1)))
 {
   if (!"TreeID" %in% names(las)) {

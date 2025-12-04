@@ -11,7 +11,9 @@ forest_inventory(
   increment = 0.2,
   width = 0.1,
   max_dbh = 1,
-  n_cores = max(c(1, parallel::detectCores()/2 - 1))
+  n_cores = 1,
+  tree_id_col = "TreeID",
+  non_tree_id = 0
 )
 }
 \arguments{
@@ -28,6 +30,10 @@ forest_inventory(
 \item{max_dbh}{the maximum DBH allowed}
 
 \item{n_cores}{number of cores to use}
+
+\item{tree_id_col}{Column name for the instance segmantation ID (TreeIDs)}
+
+\item{non_tree_id}{tree_id_col value for non tree elements (can be a vector of IDs)}
 }
 \value{
 a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
