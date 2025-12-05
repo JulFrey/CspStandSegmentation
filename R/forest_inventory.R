@@ -279,7 +279,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     if (nrow(tree) < 3) {
       dbh <- NA
       warning(paste("to little points in tree", t))
-      return(list(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Z), DBH = dbh, quality_flag = 1))
+      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Z), DBH = dbh, quality_flag = 1))
     }
 
     t_seq <- .fit_circles(tree)
@@ -296,10 +296,10 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     if ((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)) {
       dbh <- mean(t_seq$r, na.rm = TRUE) * 2
       if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
-        return(list(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 2))
+        return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 2))
       }
       else {
-        return(list(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = dbh, quality_flag = 2))
+        return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = dbh, quality_flag = 2))
       }
     }
     spline_r <- suppressWarnings(with(t_seq[!is.na(t_seq$r),
@@ -313,9 +313,9 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     y <- as.numeric(predict(spline_y, 1.3)$y)
     dbh <- r * 2
     if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
-      return(list(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
+      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
     } else {
-      return(list(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
+      return(c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
     }
   }
 
