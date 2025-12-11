@@ -110,12 +110,13 @@ ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.0
     dist_to_center <- sqrt(dx*dx + dy*dy)
     distances <- abs(dist_to_center - r)
 
+    if(any(is.na(c(cx, cy, r, distances)))){ next }
+
     # Count inliers
     inlier_mask <- distances < distance_threshold
     inliers     <- sum(inlier_mask)
 
-    if (inliers < min_inliers)
-      next
+    if (inliers < min_inliers){ next }
 
     # Vectorised angles only for inliers
     # atan2 in degrees in [0, 360)
@@ -207,6 +208,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
   if ("Zref" %in% names(las)) {
     dbh_slice <- lidR::filter_poi(las, Z > slice_min & Z < slice_max)
     dbh_slice@data$Znorm <- dbh_slice@data$Z
+    las@data$Znorm <- las@data$Z
   } else if ("Znorm" %in% names(las)) {
     dbh_slice <- lidR::filter_poi(las, Znorm > slice_min & Znorm < slice_max)
     dbh_slice@data$Zref <- dbh_slice@data$Z
@@ -218,6 +220,9 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     dbh_slice@data$Zref <- dbh_slice@data$Z
     dbh_slice@data$Z <- dbh_slice@data$Znorm
   }
+
+  # get BBox for later quality control
+  bbox <- c(min_x = las@header$`Min X`, max_x = las@header$`Max X`, min_y = las@header$`Min Y`, max_y = las@header$`Max Y`)
 
   starts <- seq(slice_min, slice_max - width, by = increment)
   slices <- data.table::data.table(
@@ -238,7 +243,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
   t1 <- Sys.time()
   IDs <- points_per_stem[N > 3, ..tree_id_col]
 
-  message("Fit a DBH value to every tree:")
+  message("Fit a DBH value to every tree.")
 
   .fit_circle <- function(slice) {
     # 'slice' is a data.table with columns X, Y, Planarity, Verticality
@@ -255,7 +260,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
       ]
     }
 
-    CspStandSegmentation::ransac_circle_fit(
+    ransac_circle_fit(
       planes[, .(X, Y)],
       n_iterations = 500
     )$circle
@@ -276,23 +281,30 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
   }
 
   .spline_predict <- function(tree){
+
+    # return position but no dbh if less than 3 points
     if (nrow(tree) < 3) {
-      dbh <- NA
-      warning(paste("to little points in tree", t))
-      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Z), DBH = dbh, quality_flag = 1))
+      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Zref), DBH = NA, quality_flag = 1))
     }
 
+    # fit circles allong trunk
     t_seq <- .fit_circles(tree)
     names(t_seq)[1:2] <- c("Zmin","Zmax")
 
+    # calculate mean dbh height
     Z <- mean(tree$Zref - tree$Znorm) + 1.3
 
+    # quality control: remove unrealistic large circles
     t_seq$r[abs(t_seq$r - median(t_seq$r, na.rm = TRUE)) > 2 * sd(t_seq$r, na.rm = TRUE)] <- NA
+
+    # quality control: check if circles do not get way larger allong the trunk
     for (s in 2:nrow(t_seq)) {
       if (.na2true(t_seq$r[s] > suppressWarnings(min(t_seq$r[1:(s -1)], na.rm = TRUE) * 1.3)) | .na2true(t_seq$r[s] < 0.04) | all(is.na(t_seq$r[1:s]))) {
         t_seq[s, c("X", "Y", "r")] <- NA
       }
     }
+
+    # if there are too little circles to fit a spline return the mean circle diameter
     if ((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)) {
       dbh <- mean(t_seq$r, na.rm = TRUE) * 2
       if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
@@ -302,18 +314,23 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
         return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = dbh, quality_flag = 2))
       }
     }
+
+    # fit a spline for X,Y and DBH each along the Z direction
     spline_r <- suppressWarnings(with(t_seq[!is.na(t_seq$r),
     ], smooth.spline(Zmin, r, df = 3)))
     spline_x <- suppressWarnings(with(t_seq[!is.na(t_seq$X),
     ], smooth.spline(Zmin, X, df = 20)))
     spline_y <- suppressWarnings(with(t_seq[!is.na(t_seq$Y),
     ], smooth.spline(Zmin, Y, df = 20)))
+    # predict DBH X and Y at DBH height
     r <- as.numeric(predict(spline_r, 1.3)$y)
     x <- as.numeric(predict(spline_x, 1.3)$y)
     y <- as.numeric(predict(spline_y, 1.3)$y)
     dbh <- r * 2
     if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
       return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
+    } else if (x > (mean(tree$X) + 5) | x < (mean(tree$X) - 5) | y > (mean(tree$Y) + 5) | y < (mean(tree$Y) - 5)) {
+      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, quality_flag = 3))
     } else {
       return(c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
     }
