@@ -13,7 +13,10 @@ forest_inventory(
   max_dbh = 1,
   n_cores = 1,
   tree_id_col = "TreeID",
-  non_tree_id = 0
+  non_tree_id = 0,
+  use_stem_segmentation = FALSE,
+  semantic_colname = NULL,
+  stem_semantic_label = NULL
 )
 }
 \arguments{
@@ -34,6 +37,12 @@ forest_inventory(
 \item{tree_id_col}{Column name for the instance segmantation ID (TreeIDs)}
 
 \item{non_tree_id}{tree_id_col value for non tree elements (can be a vector of IDs)}
+
+\item{use_stem_segmentation}{logical whether to use only points classified as stem for DBH estimation}
+
+\item{semantic_colname}{character name of the semantic segmentation column (only needed if use_stem_segmentation is TRUE)}
+
+\item{stem_semantic_label}{integer semantic label value for stem points (only needed if use_stem_segmentation is TRUE)}
 }
 \value{
 a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
