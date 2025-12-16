@@ -233,7 +233,7 @@ forest_inventory <- function(las,
   }
 
   # if specified, filter only stem points
-  if(use_stem_segmentation == TRUE){
+  if(use_stem_segmentation){
     if(is.null(semantic_colname) | is.null(stem_semantic_label)){
       stop("If use_stem_segmentation is TRUE, semantic_colname and stem_semantic_label must be provided.")
     }
@@ -273,7 +273,7 @@ forest_inventory <- function(las,
 
     if (nrow(slice) < 3) {
       return(rep(NA_real_, 3))
-    } else if (nrow(slice) < 100) {
+    } else if (nrow(slice) < 100 | use_stem_segmentation) {
       planes <- slice
     } else {
       q <- 1 - sqrt(100 / nrow(slice)) + 0.05
