@@ -167,6 +167,9 @@ ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.0
 #' @param n_cores number of cores to use
 #' @param tree_id_col Column name for the instance segmantation ID (TreeIDs)
 #' @param non_tree_id tree_id_col value for non tree elements (can be a vector of IDs)
+#' @param use_stem_segmentation logical whether to use only points classified as stem for DBH estimation
+#' @param semantic_colname character name of the semantic segmentation column (only needed if use_stem_segmentation is TRUE)
+#' @param stem_semantic_label integer semantic label value for stem points (only needed if use_stem_segmentation is TRUE)
 #'
 #' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
 #'
@@ -189,7 +192,13 @@ ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.0
 #' }
 #' @export forest_inventory
 #' @import data.table
-forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.2, width = 0.1, max_dbh = 1, n_cores = 1, tree_id_col = "TreeID", non_tree_id = 0) {
+forest_inventory <- function(las,
+                             slice_min = 0.3, slice_max = 4, increment = 0.2,
+                             width = 0.1, max_dbh = 1, n_cores = 1, tree_id_col = "TreeID",
+                             non_tree_id = 0,
+                             use_stem_segmentation = FALSE,
+                             semantic_colname = NULL,
+                             stem_semantic_label = NULL) {
 
   # Temporarily disable data.table progress
   old_opt <- options(datatable.showProgress = FALSE)
@@ -205,6 +214,8 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
   # remove no Tree elements
   las@data <- las@data[!is.na(get(tree_id_col)) & !(get(tree_id_col) %in% non_tree_id)]
+
+  # normalize heights if not already done and filter points in the dbh slice
   if ("Zref" %in% names(las)) {
     dbh_slice <- lidR::filter_poi(las, Z > slice_min & Z < slice_max)
     dbh_slice@data$Znorm <- dbh_slice@data$Z
@@ -220,6 +231,18 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     dbh_slice@data$Zref <- dbh_slice@data$Z
     dbh_slice@data$Z <- dbh_slice@data$Znorm
   }
+
+  # if specified, filter only stem points
+  if(use_stem_segmentation){
+    if(is.null(semantic_colname) | is.null(stem_semantic_label)){
+      stop("If use_stem_segmentation is TRUE, semantic_colname and stem_semantic_label must be provided.")
+    }
+    if(!semantic_colname %in% names(las)){
+      stop("The las object does not contain the specified semantic_colname attribute.")
+    }
+    dbh_slice <- lidR::filter_poi(dbh_slice, get(semantic_colname) == stem_semantic_label)
+  }
+
 
   # get BBox for later quality control
   bbox <- c(min_x = las@header$`Min X`, max_x = las@header$`Max X`, min_y = las@header$`Min Y`, max_y = las@header$`Max Y`)
@@ -250,7 +273,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
     if (nrow(slice) < 3) {
       return(rep(NA_real_, 3))
-    } else if (nrow(slice) < 100) {
+    } else if (nrow(slice) < 100 | use_stem_segmentation) {
       planes <- slice
     } else {
       q <- 1 - sqrt(100 / nrow(slice)) + 0.05
