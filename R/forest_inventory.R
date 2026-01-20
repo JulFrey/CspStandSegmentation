@@ -323,9 +323,9 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     spline_y <- suppressWarnings(with(t_seq[!is.na(t_seq$Y),
     ], smooth.spline(Zmin, Y, df = 20)))
     # predict DBH X and Y at DBH height
-    r <- as.numeric(predict(spline_r, 1.3)$y)
-    x <- as.numeric(predict(spline_x, 1.3)$y)
-    y <- as.numeric(predict(spline_y, 1.3)$y)
+    r <- as.numeric(predict(spline_r, 1.3+0.5*increment)$y)
+    x <- as.numeric(predict(spline_x, 1.3+0.5*increment)$y)
+    y <- as.numeric(predict(spline_y, 1.3+0.5*increment)$y)
     dbh <- r * 2
     if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
       return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
@@ -336,7 +336,6 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
     }
   }
 
-
   dbh_results <- dbh_slice@data[,{
     pars <- .spline_predict(.SD)
     .(
@@ -346,7 +345,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
       DBH   = pars[4L],
       quality_flag = pars[5L]
     )
-  }, by = tree_id_col, .SDcols = c("X", "Y","Z", "Zref","Znorm", "Planarity", "Verticality")]
+  }, by = tree_id_col, .SDcols = c("X", "Y", "Z", "Zref", "Znorm", "Planarity", "Verticality")]
 
   message("DBH estimated. Calculating tree heights.")
 
@@ -367,6 +366,7 @@ forest_inventory <- function(las, slice_min = 0.3, slice_max = 4, increment = 0.
 
   dbh_results <- merge(dbh_results, heights, by = tree_id_col)
   dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
+  dbh_results <- data.frame(apply(dbh_results, 2, unlist))
   return(dbh_results)
 }
 
@@ -464,6 +464,7 @@ forest_inventory_simple <- function(las, slice_min = 1.2, slice_max = 1.4, max_d
   dbh_results2 <- merge(dbh_results, heights, by = "TreeID")
   dbh_results2 <- merge(dbh_results2, cpa, by = "TreeID")
   dbh_results2 <- merge(dbh_results2, tree_pos_height, by = "TreeID")
+  dbh_results2 <- data.frame(apply(dbh_results2, 2, unlist))
   return(dbh_results2)
 }
 
@@ -500,12 +501,13 @@ forest_inventory_simple <- function(las, slice_min = 1.2, slice_max = 1.4, max_d
 #' }
 #'
 #' @export plot_inventory
-plot_inventory <- function(plot, inventory,col = NA,cex = 1.5, label_col = "white"){
+plot_inventory <- function(plot, inventory, col = NA, cex = 1.5, label_col = "white"){
   if(is.na(col)){
     col <- rainbow(max(inventory$TreeID) - min(inventory$TreeID))
   }
+
   # generate a circle for evry dbh estimation
-  rgl::spheres3d(inventory$X - plot[1], inventory$Y - plot[2], inventory$Z+1.3, radius = inventory$DBH/2,col = col)
+  rgl::spheres3d(inventory$X - plot[1],inventory$Y - plot[2], inventory$Z+1.3, radius = inventory$DBH/2,col = col)
   for(i in 1:nrow(inventory)){
     rgl::texts3d(inventory$X[i] - plot[1] + inventory$DBH[i], inventory$Y[i] - plot[2] + inventory$DBH[i], inventory$Z[i] + 1.3, text = inventory$TreeID[i], adj = c(0.5,0.5), col = label_col, cex = cex, family = "mono", font = 2)
     rgl::lines3d(c(inventory$X[i] - plot[1], inventory$X[i] - plot[1]), c(inventory$Y[i] - plot[2], inventory$Y[i] - plot[2]), c(inventory$Z[i], inventory$Height[i]), col = ifelse(length(col) >= i, col[i], col), lwd = 2)
