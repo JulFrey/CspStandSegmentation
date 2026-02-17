@@ -1,7 +1,7 @@
 Package: CspStandSegmentation
 Type: Package
 Title: Comparative Shortest Path Forest Stand Segmentation from LiDAR Data
-Version: 0.1.3
+Version: 0.2.0
 Authors@R: c(
   person("Julian", "Frey", email = "julian.frey@wwd.uni-freiburg.de", role = c("aut", "cre"), comment = c(ORCID = "0000-0001-7895-702X")),
   person("Zoe", "Schindler", email = "zoe.schindler@wwd.uni-freiburg.de", role = c("ctb"), comment = c(ORCID = "0000-0003-2972-1920"))
