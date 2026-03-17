@@ -64,7 +64,7 @@ p_mat_dist <- function(mat, p){
 #' sample <- fds(mat, n = 50, ret = "mat")
 #' str(sample)
 #'
-fds_KK <- function(mat, n = NULL, spacing = NULL, ret = "idx", scale = FALSE){
+fds <- function(mat, n = NULL, spacing = NULL, ret = "idx", scale = FALSE){
   # check the inputs
   was_las <- FALSE
   if(!is.matrix(mat)){
