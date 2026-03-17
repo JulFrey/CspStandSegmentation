@@ -4,28 +4,37 @@
 \alias{fds}
 \title{Farthest Distance Sampling (Farthest Point Sampling)}
 \usage{
-fds(mat, n, ret = "idx", scale = FALSE)
+fds(mat, n = NULL, spacing = NULL, ret = "idx", scale = FALSE)
 }
 \arguments{
-\item{mat}{a matrix of points with one row for each point and one column for each dimension, can also be a las object then only XYZ will be used}
+\item{mat}{a matrix of points with one row for each point and one column for
+each dimension, can also be a las object then only XYZ will be used}
 
-\item{n}{the number of points to select, or if <1 the proportion of points to select}
+\item{n}{the number of points to select, or if <1 the proportion of points to
+select}
 
-\item{ret}{the type of output to return. Options are "idx" (default) to return the indices of the selected points, "mat" to return the selected points.}
+\item{spacing}{If supplied, sampling continues until the minimum nearest-
+neighbour distance among selected points drops below `spacing`.}
 
-\item{scale}{logical. If TRUE, the dimensions are scaled to have a mean of 0 and a standard deviation of 1 before calculating distances.}
+\item{ret}{the type of output to return. Options are "idx" (default) to return
+the indices of the selected points, "mat" to return the selected points.}
+
+\item{scale}{logical. If TRUE, the dimensions are scaled to have a mean of 0
+and a standard deviation of 1 before calculating distances.}
 }
 \value{
 a vector of indices or a matrix of points
 }
 \description{
-This function selects n points from a matrix of points such that the minimum distance between any two points is maximized.
+This function selects n points from a matrix of points such that the minimum
+distance between any two points is maximized. Either a fixed number of points
+can be selected (using the `n` parameter) or points can be selected until a
+specified minimum spacing is violated (using the `spacing` parameter).
 This version is memory efficient and can handle large matrices.
 }
 \examples{
 mat <- matrix(rnorm(1000), ncol = 10)
-sample <- fds(mat, 50, ret = "mat")
+sample <- fds(mat, n = 50, ret = "mat")
 str(sample)
-
 
 }
