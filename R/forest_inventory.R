@@ -170,8 +170,11 @@ ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.0
 #' @param use_stem_segmentation logical whether to use only points classified as stem for DBH estimation
 #' @param semantic_colname character name of the semantic segmentation column (only needed if use_stem_segmentation is TRUE)
 #' @param stem_semantic_label integer semantic label value for stem points (only needed if use_stem_segmentation is TRUE)
+#' @param stem_quality Logical; if `TRUE`, estimate stem curvature and taper using the CNN-based stem-quality workflow.
 #'
-#' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
+#' @returns A data.frame with `TreeID`, `X`, `Y`, `Z`, `DBH`, `quality_flag`,
+#'   `Height`, and `ConvexHullArea`. If `stem_quality = TRUE`, the output also
+#'   includes `Curvature` and `Taper`.
 #'
 #' @examples
 #' \donttest{
@@ -359,21 +362,21 @@ forest_inventory <- function(las,
       return(c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
     }
   }
- 
+
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: START
    .get_circle_ctx <- function() {
     if (!is.null(.stemq_cache$ctx)) return(.stemq_cache$ctx)
-    
+
     #relative paths for model and cnn def file
     get_path <- function() if (length(f <- grep("^--file=", a <- commandArgs(FALSE))))
       sub("^--file=", "", a[f]) else if (!is.null(sys.frames()[[1]]$ofile))
         sys.frames()[[1]]$ofile else rstudioapi::getSourceEditorContext()$path
-    
+
     script_path <- normalizePath(get_path())
     script_dir  <- dirname(script_path)
     model_path <- file.path(script_dir, "cnn_definition.R")
     ckpt_path  <- file.path(script_dir, "EfficientNetV2S_checkpoint.pt")
-    
+
 
     device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
     env <- new.env(parent = baseenv())
@@ -484,7 +487,7 @@ forest_inventory <- function(las,
     data.table::rbindlist(out, fill = TRUE)
   }
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: END
-  
+
   dbh_results <- dbh_slice@data[,{
     pars <- .spline_predict(.SD)
     .(
@@ -496,8 +499,8 @@ forest_inventory <- function(las,
     )
   }, by = tree_id_col, .SDcols = c("X", "Y", "Z", "Zref", "Znorm", "Planarity", "Verticality")]
 
-  message("DBH estimated. Calculating tree heights.")  
-  
+  message("DBH estimated. Calculating tree heights.")
+
   .Zdif <- function(x) max(x) - min(x)
   heights <- las@data[,.(Height = .Zdif(Z)), by = tree_id_col]
   message("Tree heights calculated. Calculating convex hull areas.")
@@ -515,7 +518,7 @@ forest_inventory <- function(las,
 
   dbh_results <- merge(dbh_results, heights, by = tree_id_col)
   dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
-                          
+
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: START
   if (stem_quality) {  # <<- stem quality inventory trigger check
     message("Convex hull areas calculated. Calculating stem curvature and taper.")
@@ -527,8 +530,8 @@ forest_inventory <- function(las,
   }
   message("Stem curvature and taper calculated.")
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: END
-                          
-  dbh_results <- data.frame(apply(dbh_results, 2, unlist))             
+
+  dbh_results <- data.frame(apply(dbh_results, 2, unlist))
   return(dbh_results)
 }
 
