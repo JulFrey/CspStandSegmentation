@@ -359,134 +359,132 @@ forest_inventory <- function(las,
       return(c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
     }
   }
-#//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: START
-  .process_trunk_slices <- function(las) { # <<- input: las of 1 tree with TreeID column
-    # this stem point semantic segmentation function is only borrowed from TreeLS package
-    # and could be replaced with a custom one later... should, rather, its not great
-    las <- TreeLS::stemPoints(las, method = TreeLS::stm.eigen.knn( # <<- Stem points estimated from input las
-      h_step = 0.5,
-      max_curvature = 0.15,
-      max_verticality = 15,
-      voxel_spacing = 0.05,
-      max_d = 0.6,
-      votes_weight = 0.2
-    ))
-    las <- lidR::filter_poi(las, Stem) # <<-Point cloud filtered by stem points
+ 
+  #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: START
+   .get_circle_ctx <- function() {
+    if (!is.null(.stemq_cache$ctx)) return(.stemq_cache$ctx)
+    
+    #relative paths for model and cnn def file
+    get_path <- function() if (length(f <- grep("^--file=", a <- commandArgs(FALSE))))
+      sub("^--file=", "", a[f]) else if (!is.null(sys.frames()[[1]]$ofile))
+        sys.frames()[[1]]$ofile else rstudioapi::getSourceEditorContext()$path
+    
+    script_path <- normalizePath(get_path())
+    script_dir  <- dirname(script_path)
+    model_path <- file.path(script_dir, "cnn_definition.R")
+    ckpt_path  <- file.path(script_dir, "EfficientNetV2S_checkpoint.pt")
+    
 
-    z_min   <- min(las$Z)
-    z_start <- z_min + 0.5
-    z_end   <- z_start + 10.0
-    step    <- 0.5
-
-    slice_bottoms <- seq(from = z_start, to = z_end - step, by = step) # <<- trunk range
-    results_list <- list()
-    for (i in seq_along(slice_bottoms)) {
-      current_z_bottom <- slice_bottoms[i]
-      current_z_top    <- current_z_bottom + step
-      mask <- las$Z >= current_z_bottom & las$Z < current_z_top # <<- distance from current to last slice center
-      slice_points <- cbind(las$X[mask], las$Y[mask])
-      # /// this entire filtering part, which filters points based on clusters is mainly intended to filter out forked stems:
-      if (!exists("last_center")) {
-        last_center <- c(mean(slice_points[, 1]), mean(slice_points[, 2]))
-      }
-      if (nrow(slice_points) > 5) { # <<-- !!!!!!! FILTERING BASED ON DBSCAN-CLUSTERS /// START
-        db <- dbscan::dbscan(slice_points, eps = 0.2, minPts = 2) # <<- dbscan clusters
-        cluster_ids <- setdiff(unique(db$cluster), 0)
-        valid_clusters <- list() # <<- only clusters within 2m range of previous slice mean are kept
-        if (length(cluster_ids) > 0) {
-          for (cid in cluster_ids) {
-            c_mask <- db$cluster == cid
-            c_pts  <- slice_points[c_mask, , drop=FALSE]
-            c_mean_x <- mean(c_pts[,1])
-            c_mean_y <- mean(c_pts[,2])
-            dist_to_last <- sqrt((c_mean_x - last_center[1])^2 + (c_mean_y - last_center[2])^2)
-            if (dist_to_last <= 1) {
-              valid_clusters[[length(valid_clusters) + 1]] <- list( # <<- potentially several valid clusters
-                id = cid,
-                n_pts = sum(c_mask),
-                pts = c_pts
-              )
-            }
-          }
-        }
-        if (length(valid_clusters) > 0) {
-          counts <- sapply(valid_clusters, function(x) x$n_pts)
-          winner <- valid_clusters[[which.max(counts)]] # <<- 1 cluster with most points wins
-          slice_points <- winner$pts
-        } else {
-          slice_points <- matrix(numeric(0), ncol=2)
-        }
-      } # <<-- !!!!!!! FILTERING BASED ON DBSCAN-CLUSTERS /// END
-      fit_result <- ransac_circle_fit(slice_points) # <<- ransac_circle_fit is applied to remaining cluster of each slice
-      if (is.na(fit_result$circle[3])) {
-        fit_result$circle  <- c(NA_real_, NA_real_, NA_real_)
-        fit_result$inliers <- NA_integer_
-      } else {
-        last_center <- c(fit_result$circle[1], fit_result$circle[2]) # <<- centers of each previous slice
-      }
-      results_list[[i]] <- data.frame(
-        slice_z  = current_z_bottom,
-        center_x = fit_result$circle[1],
-        center_y = fit_result$circle[2],
-        radius   = fit_result$circle[3],
-        inliers  = fit_result$inliers
-      )
-    }
-    rm(last_center)
-    final_table <- do.call(rbind, results_list)
-    return(final_table)
+    device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
+    env <- new.env(parent = baseenv())
+    sys.source(model_path, envir = env)
+    obj <- env$circlecnn_load_checkpoint(ckpt_path, device = device, use_pretrained = FALSE)
+    obj$model$eval()
+    .stemq_cache$ctx <- list(model = obj$model, device = obj$device)
+    .stemq_cache$ctx
   }
 
-  .add_stem_metrics <- function(df) { # <<- input: data frame, cols: slice_z center_x center_y     radius inliers curvature_ratio    taper
-    valid <- df[!is.na(df$radius) & df$radius > 0.05, ] # <<- defines valid rows of input table
-    if (nrow(valid) < 3) { # <<- at least 3 valid rows needed
-      df$curvature_ratio <- NA_real_
-      df$taper <- NA_real_
-      return(df)
+  .prep_chip <- function(pts, center_xy, window_size_m = 2, chip_n = 200L, slice_thickness_m = 0.6, min_points = 50L) {
+    half <- window_size_m / 2
+    keep <- pts$X >= center_xy[1] - half & pts$X < center_xy[1] + half &
+      pts$Y >= center_xy[2] - half & pts$Y < center_xy[2] + half
+    pts <- pts[keep]
+    if (nrow(pts) < min_points) return(NULL)
+    res_m <- window_size_m / chip_n
+    col <- pmin(chip_n, pmax(1L, floor((pts$X - (center_xy[1] - half)) / res_m) + 1L))
+    row <- pmin(chip_n, pmax(1L, floor((pts$Y - (center_xy[2] - half)) / res_m) + 1L))
+    cell <- (row - 1L) * chip_n + col
+    agg <- data.table::data.table(cell = cell, Z = pts$Z)[, .(n = .N, zspan = diff(range(Z))), by = cell]
+    dens <- numeric(chip_n * chip_n)
+    zspan <- numeric(chip_n * chip_n)
+    dens[agg$cell] <- sqrt(agg$n)
+    zspan[agg$cell] <- agg$zspan
+    s99 <- stats::quantile(dens[dens > 0], 0.99, na.rm = TRUE, names = FALSE)
+    if (!is.finite(s99) || s99 <= 0) s99 <- 1
+    chip <- array(0, dim = c(2L, chip_n, chip_n))
+    chip[1, , ] <- matrix(pmin(1, dens / s99), nrow = chip_n, byrow = TRUE)
+    chip[2, , ] <- matrix(pmin(1, zspan / slice_thickness_m), nrow = chip_n, byrow = TRUE)
+    list(chip = chip, half = half)
+  }
+
+  .predict_circle <- function(pts, center_xy, window_size_m = 2, chip_n = 200L, slice_thickness_m = 0.6, min_points = 50L) {
+    prep <- .prep_chip(pts, center_xy, window_size_m, chip_n, slice_thickness_m, min_points)
+    if (is.null(prep)) return(list(cx = NA_real_, cy = NA_real_, r = NA_real_, p_stem = NA_real_))
+    ctx <- .get_circle_ctx()
+    x <- torch::torch_tensor(array(prep$chip, dim = c(1L, dim(prep$chip))), dtype = torch::torch_float())$to(device = ctx$device)
+    out <- torch::with_no_grad(ctx$model(x))
+    p <- as.numeric(torch::as_array(torch::torch_sigmoid(out$logit_stem)$cpu()))[1]
+    reg <- as.numeric(torch::as_array(out$reg$cpu()))
+    list(
+      cx = center_xy[1] + reg[1] * prep$half,
+      cy = center_xy[2] + reg[2] * prep$half,
+      r = reg[3] * prep$half,
+      p_stem = p
+    )
+  }
+
+  .process_trunk_slices <- function(tree_pts, x0, y0, z0, dbh0, slice_thickness_m = 0.6, z_max_rel = 10, p_min = 0.6) {
+    z_seq <- seq(z0, z0 + z_max_rel, by = slice_thickness_m)
+    anchor <- c(x0, y0, dbh0 / 2)
+    out <- vector("list", length(z_seq))
+    for (i in seq_along(z_seq)) {
+      zi <- z_seq[i]
+      pts_i <- tree_pts[Z >= zi - slice_thickness_m / 2 & Z < zi + slice_thickness_m / 2]
+      pred <- .predict_circle(pts_i, anchor[1:2], slice_thickness_m = slice_thickness_m)
+      ok <- is.finite(pred$p_stem) && pred$p_stem >= p_min && is.finite(pred$r) && pred$r > 0
+      if (i == 1L) {
+        ok <- ok && is.finite(dbh0) && sqrt((pred$cx - x0)^2 + (pred$cy - y0)^2) <= dbh0
+        if (ok) {
+          anchor <- c(pred$cx, pred$cy, pred$r)
+          out[[i]] <- data.frame(slice_z = zi, center_x = pred$cx, center_y = pred$cy, radius = pred$r, p_stem = pred$p_stem)
+        } else {
+          out[[i]] <- data.frame(slice_z = zi, center_x = x0, center_y = y0, radius = dbh0 / 2, p_stem = pred$p_stem)
+        }
+      } else if (ok && is.finite(anchor[3]) && sqrt((pred$cx - anchor[1])^2 + (pred$cy - anchor[2])^2) <= 2 * anchor[3]) {
+        anchor <- c(pred$cx, pred$cy, pred$r)
+        out[[i]] <- data.frame(slice_z = zi, center_x = pred$cx, center_y = pred$cy, radius = pred$r, p_stem = pred$p_stem)
+      } else {
+        out[[i]] <- data.frame(slice_z = zi, center_x = NA_real_, center_y = NA_real_, radius = NA_real_, p_stem = pred$p_stem)
+      }
     }
-    # /// curvature ratio
+    data.table::rbindlist(out)
+  }
+
+  add_stem_metrics <- function(df) {
+    valid <- df[!is.na(df$radius) & df$radius > 0.05, ]
+    if (nrow(valid) < 3) return(list(curvature_ratio = NA_real_, taper = NA_real_))
     curv_rat <- tryCatch({
       sx <- smooth.spline(valid$slice_z, valid$center_x, spar = 0.4)$y
       sy <- smooth.spline(valid$slice_z, valid$center_y, spar = 0.4)$y
       sz <- valid$slice_z
-      diffs <- sqrt(diff(sx)^2 + diff(sy)^2 + diff(sz)^2)
-      arc_len <- sum(diffs)
-      chord_len <- sqrt((sx[length(sx)] - sx[1])^2 +
-                          (sy[length(sy)] - sy[1])^2 +
-                          (sz[length(sz)] - sz[1])^2)
+      arc_len <- sum(sqrt(diff(sx)^2 + diff(sy)^2 + diff(sz)^2))
+      chord_len <- sqrt((sx[length(sx)] - sx[1])^2 + (sy[length(sy)] - sy[1])^2 + (sz[length(sz)] - sz[1])^2)
       (arc_len - chord_len) / chord_len
     }, error = function(e) NA_real_)
-    # /// taper
-    taper_val <- tryCatch({
-      lm_fit <- lm((valid$radius * 2) ~ valid$slice_z)
-      -coef(lm_fit)[2] * 100
-    }, error = function(e) NA_real_)
-    return(list(
-      curvature_ratio = curv_rat * 100, # <<- curvature ratio (cm/m)
-      taper = taper_val # <<- taper (cm/m)
-    ))
+    taper_val <- tryCatch(-coef(lm((valid$radius * 2) ~ valid$slice_z))[2] * 100, error = function(e) NA_real_)
+    list(curvature_ratio = curv_rat * 100, taper = taper_val)
   }
 
-  .stem_quality_inventory <- function(las) {
-    unique_ids <- unique(las$TreeID)
-    output_list <- list()
-    for (id in unique_ids) {
-      tree_las <- las[las$TreeID == id]
-      slices_df <- tryCatch(.process_trunk_slices(tree_las), error = function(e) NULL)
-
-      if (!is.null(slices_df) && nrow(slices_df) > 0) {
-        metrics <- .add_stem_metrics(slices_df)
-        output_list[[as.character(id)]] <- data.frame(
-          TreeID    = id,
-          Curvature = metrics$curvature_ratio,
-          Taper     = metrics$taper
-        )
-      }
+  stem_quality_inventory <- function(las) {
+    if (nrow(stem_quality_seeds) == 0L) {
+      return(data.table::data.table(TreeID = character(), Curvature = numeric(), Taper = numeric()))
     }
-    final_table <- do.call(rbind, output_list)
-    return(final_table)
+    pts <- data.table::as.data.table(las@data)[, .(TreeID = get(tree_id_col), X, Y, Z)]
+    trees <- split(pts, pts$TreeID)
+    out <- lapply(seq_len(nrow(stem_quality_seeds)), function(i) {
+      seed <- stem_quality_seeds[i]
+      tree_pts <- trees[[as.character(seed$TreeID)]]
+      if (is.null(tree_pts) || nrow(tree_pts) < 3L) {
+        return(data.frame(TreeID = seed$TreeID, Curvature = NA_real_, Taper = NA_real_))
+      }
+      slices_df <- .process_trunk_slices(tree_pts, seed$X, seed$Y, seed$Z, seed$DBH)
+      metrics <- add_stem_metrics(slices_df)
+      data.frame(TreeID = seed$TreeID, Curvature = metrics$curvature_ratio, Taper = metrics$taper)
+    })
+    data.table::rbindlist(out, fill = TRUE)
   }
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: END
+  
   dbh_results <- dbh_slice@data[,{
     pars <- .spline_predict(.SD)
     .(
@@ -498,8 +496,8 @@ forest_inventory <- function(las,
     )
   }, by = tree_id_col, .SDcols = c("X", "Y", "Z", "Zref", "Znorm", "Planarity", "Verticality")]
 
-  message("DBH estimated. Calculating tree heights.")
-
+  message("DBH estimated. Calculating tree heights.")  
+  
   .Zdif <- function(x) max(x) - min(x)
   heights <- las@data[,.(Height = .Zdif(Z)), by = tree_id_col]
   message("Tree heights calculated. Calculating convex hull areas.")
@@ -517,13 +515,20 @@ forest_inventory <- function(las,
 
   dbh_results <- merge(dbh_results, heights, by = tree_id_col)
   dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
-  dbh_results <- data.frame(apply(dbh_results, 2, unlist))
+                          
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: START
   if (stem_quality) {  # <<- stem quality inventory trigger check
-    stem_quality_inventory_df <- .stem_quality_inventory(las)
-    dbh_results <- merge(dbh_results, stem_quality_inventory_df, by = "TreeID", all.x = TRUE)
+    message("Convex hull areas calculated. Calculating stem curvature and taper.")
+    stem_quality_seeds <- data.table::as.data.table(dbh_results)
+    .stemq_cache <- new.env(parent = emptyenv())
+    .stemq_cache$ctx <- NULL
+    stem_quality_inventory_df <- stem_quality_inventory(las)
+    dbh_results <- merge(dbh_results, stem_quality_inventory_df, by = tree_id_col, all.x = TRUE)
   }
+  message("Stem curvature and taper calculated.")
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: END
+                          
+  dbh_results <- data.frame(apply(dbh_results, 2, unlist))             
   return(dbh_results)
 }
 
