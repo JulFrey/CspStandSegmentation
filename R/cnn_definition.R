@@ -221,9 +221,37 @@ CircleCNN <- CircleCNN_MobileNetV3Large
   )
 }
 
-# ------------------------------------------------------------
-# Helper: load a checkpoint (.pt) and return a ready-to-use model
-# ------------------------------------------------------------
+#' Load a CircleCNN checkpoint
+#'
+#' Reconstructs a checkpoint-compatible CircleCNN architecture from a saved
+#' `.pt` file, loads the trained weights, moves the model to the selected
+#' device, and returns a ready-to-use model object.
+#'
+#' The loader currently supports EfficientNetV2-S and MobileNetV3-Large based
+#' CircleCNN checkpoints and infers the correct architecture from the checkpoint
+#' state dictionary.
+#'
+#' @param ckpt_path Character path to a saved checkpoint file.
+#' @param device Optional torch device. If `NULL`, CUDA is used when available,
+#'   otherwise CPU.
+#' @param use_pretrained Logical; whether to initialise the backbone with
+#'   pretrained torchvision weights before loading the checkpoint state.
+#'
+#' @return A list with components:
+#' \describe{
+#'   \item{model}{A torch model in evaluation mode.}
+#'   \item{device}{The torch device used.}
+#'   \item{architecture}{The inferred model architecture.}
+#'   \item{threshold}{Checkpoint threshold if present, otherwise `NULL`.}
+#'   \item{window_size_m}{Checkpoint window size if present, otherwise `NULL`.}
+#' }
+#'
+#' @examples
+#' \dontrun{
+#'   obj <- circlecnn_load_checkpoint("CNN_MobileNetV3Large_v1.pt")
+#'   model <- obj$model
+#' }
+
 circlecnn_load_checkpoint <- function(ckpt_path,
                                       device = NULL,
                                       use_pretrained = FALSE) {
