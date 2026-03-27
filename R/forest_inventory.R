@@ -375,7 +375,7 @@ forest_inventory <- function(las,
     script_path <- normalizePath(get_path())
     script_dir  <- dirname(script_path)
     model_path <- file.path(script_dir, "cnn_definition.R")
-    ckpt_path  <- file.path(script_dir, "EfficientNetV2S_checkpoint.pt")
+    ckpt_path  <- file.path(script_dir, "CNN_MobileNetV3Large_v1.pt")
 
 
     device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
