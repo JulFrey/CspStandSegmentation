@@ -365,28 +365,29 @@ forest_inventory <- function(las,
 
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: START
    .get_circle_ctx <- function() {
-    if (!is.null(.stemq_cache$ctx)) return(.stemq_cache$ctx)
-
-    #relative paths for model and cnn def file
-    get_path <- function() if (length(f <- grep("^--file=", a <- commandArgs(FALSE))))
-      sub("^--file=", "", a[f]) else if (!is.null(sys.frames()[[1]]$ofile))
-        sys.frames()[[1]]$ofile else rstudioapi::getSourceEditorContext()$path
-
-    script_path <- normalizePath(get_path())
-    script_dir  <- dirname(script_path)
-    model_path <- file.path(script_dir, "cnn_definition.R")
-    ckpt_path  <- file.path(script_dir, "CNN_MobileNetV3Large_v1.pt")
-
-
-    device <- torch::torch_device(if (torch::cuda_is_available()) "cuda" else "cpu")
-    env <- new.env(parent = baseenv())
-    sys.source(model_path, envir = env)
-    obj <- env$circlecnn_load_checkpoint(ckpt_path, device = device, use_pretrained = FALSE)
-    obj$model$eval()
-    .stemq_cache$ctx <- list(model = obj$model, device = obj$device)
-    .stemq_cache$ctx
-  }
-
+     if (!is.null(.stemq_cache$ctx)) return(.stemq_cache$ctx)
+     ckpt_path <- system.file(
+       "R",
+       "CNN_MobileNetV3Large_v1.pt",
+       package = "CspStandSegmentation"
+     )
+     if (ckpt_path == "" || !file.exists(ckpt_path)) {
+       stop(
+         "Checkpoint file not found. Expected at /R/CNN_MobileNetV3Large_v1.pt"
+       )
+     }
+     device <- torch::torch_device(
+       if (torch::cuda_is_available()) "cuda" else "cpu"
+     )
+     obj <- circlecnn_load_checkpoint(
+       ckpt_path,
+       device = device,
+       use_pretrained = FALSE
+     )
+     obj$model$eval()
+     .stemq_cache$ctx <- list(model = obj$model, device = obj$device)
+     .stemq_cache$ctx
+   }
   .prep_chip <- function(pts, center_xy, window_size_m = 2, chip_n = 200L, slice_thickness_m = 0.6, min_points = 50L) {
     half <- window_size_m / 2
     keep <- pts$X >= center_xy[1] - half & pts$X < center_xy[1] + half &
