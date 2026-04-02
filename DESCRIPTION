@@ -25,7 +25,9 @@ Imports:
     terra,
     RCSF,
     conicfit,
-    rgl
+    rgl,
+    RANN,
+    colorspace
 LinkingTo: 
     Rcpp,
     RcppArmadillo,

@@ -22,6 +22,9 @@
 #'
 #' @export
 get_pal <- function(name = "rainbow") {
+  if (!is.character(name) || length(name) != 1) {
+    stop("`name` must be a single string")
+  }
   # modified from coolors.co
   palettes <- list(
     "sky" = c("#f2c13a","#ef7239","#f23184","#955ae8","#5c96f5"),
@@ -34,7 +37,9 @@ get_pal <- function(name = "rainbow") {
     "candy" = c("#9137ff","#ff5ce4","#ff4545","#fee440","#00bbf9","#00f5bc"),
     "boring" = c("#DEE2E6", "#191C1F")
   )
-  return(colorRampPalette(palettes[[name]]))
+  pal <- palettes[[name]]
+  if (is.null(pal)) stop("Unknown palette: ", name)
+  grDevices::colorRampPalette(pal)
 }
 
 
@@ -107,6 +112,9 @@ color_ids <- function(
   # check inputs
   if(!lidR::is(las, "LAS")) stop("las must be a LAS object")
   
+  # check if instance_id column exists
+  if(!instance_id %in% names(las@data)) stop("instance_id column not found in las@data")
+
   had_rgb <- all(c("R", "G", "B") %in% names(las@data))
   # check if las has rgb values and warn if they will be overwritten
   if(had_rgb & overwrite_rgb) {
@@ -121,7 +129,7 @@ color_ids <- function(
   }
 
   # assign color palette
-  pal_fun <- ifelse(length(col) > 1, colorRampPalette(col), get_pal(col))
+  pal_fun <- if (length(col) > 1) colorRampPalette(col) else get_pal(col)
   pal <- pal_fun(n_col)
   
   # rename columns
@@ -247,13 +255,13 @@ color_ids <- function(
 }
 
 
-# read data
-las <- lidR::readLAS("D:/github/trees.laz", select = "0")
+# # read data
+# las <- lidR::readLAS("D:/github/trees.laz", select = "0")
 
-# add color values
-las <- color_ids(las, col = get_pal(), instance_id = "PredInstance", ground_color = "#ff0000")
+# # add color values
+# las <- color_ids(las, col = "sky", instance_id = "PredInstance", ground_color = "#ff0000")
 
-# show results
-lidR::plot(las, color = "RGB")
+# # show results
+# lidR::plot(las, color = "RGB")
 
-# ==============================================================================
+# # ==============================================================================
