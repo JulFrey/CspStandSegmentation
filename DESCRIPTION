@@ -23,7 +23,6 @@ Imports:
     data.table,
     sf,
     terra,
-    FNN,
     RCSF,
     conicfit,
     rgl

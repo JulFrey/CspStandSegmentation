@@ -17,25 +17,27 @@ p_dist <- function(p1, p2){
   sqrt(sum((p1 - p2)^2))
 }
 
-#' Point distance function
-#'
-#' calculates euclidean distances for n dimensions between a matrix of points and a single point
-#'
-#' @param mat matrix with points as rows
-#' @param p point to calculate distances
-#'
-#' @return the distances between every row of mat and p
-#' @export p_mat_dist
-#'
-#' @examples
-#' p_mat_dist(as.matrix(cbind(runif(100),runif(100))), c(3,4))
-p_mat_dist <- function(mat, p){
-  mat2 <- mat
-  for(c in 1:ncol(mat)){
-    mat2[,c] <- (mat[,c] - p[c])^2
-  }
-  return(sqrt(.rowSums(mat2, nrow(mat2), ncol(mat2))))
-}
+# replaced by cpp function
+# #' Point distance function
+# #'
+# #' calculates euclidean distances for n dimensions between a matrix of points and a single point
+# #'
+# #' @param mat matrix with points as rows
+# #' @param p point to calculate distances
+# #'
+# #' @return the distances between every row of mat and p
+# #' @export p_mat_dist
+# #'
+# #' @examples
+# #' p_mat_dist(as.matrix(cbind(runif(100),runif(100))), c(3,4))
+# p_mat_dist2 <- function(mat, p){
+#   mat2 <- mat
+#   for(c in 1:ncol(mat)){
+#     mat2[,c] <- (mat[,c] - p[c])^2
+#   }
+#   return(sqrt(.rowSums(mat2, nrow(mat2), ncol(mat2))))
+# }
+
 
 #' Farthest Distance Sampling (Farthest Point Sampling)
 #'
@@ -146,16 +148,8 @@ fds <- function(mat, n = NULL, spacing = NULL, ret = "idx", scale = FALSE){
     # spacing-based stopping rule (minimum nearest neighbour distance)
     if(!is.null(spacing)){
       if(length(idx) > 1){
-        # compute nearest neighbour distances among selected points
-        nn <- FNN::get.knn(mat[idx, , drop = FALSE], k = 1)
-        # minimum nearest neighbor distance among selected points
-        min_nn <- min(nn$nn.dist, na.rm = TRUE)
-
-        # if the minimum nearest neighbour distance drops below spacing, stop
-        # sampling
-        if(min_nn < spacing){
-          # remove last added point (it violated spacing)
-          idx <- idx[-length(idx)]
+        
+        if(max(dists) < spacing){
           break
         }
       }

@@ -46,3 +46,20 @@ eigen_decomposition <- function(las, k, ncpu = 1L) {
     .Call(`_CspStandSegmentation_eigen_decomposition`, las, k, ncpu)
 }
 
+#' Point distance function
+#'
+#' calculates euclidean distances for n dimensions between a matrix of points and a single point
+#'
+#' @param mat matrix with points as rows
+#' @param p point to calculate distances
+#' @param nthreads number of threads to use. If 0 or negative, the maximum number of threads available will be used.
+#'
+#' @return the distances between every row of mat and p
+#' @export p_mat_dist
+#'
+#' @examples
+#' p_mat_dist(as.matrix(cbind(runif(100),runif(100))), c(3,4))
+p_mat_dist <- function(mat, p, nthreads = 0L) {
+    .Call(`_CspStandSegmentation_p_mat_dist`, mat, p, nthreads)
+}
+

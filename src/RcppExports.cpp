@@ -48,11 +48,25 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// p_mat_dist
+Rcpp::NumericVector p_mat_dist(Rcpp::NumericMatrix mat, Rcpp::NumericVector p, int nthreads);
+RcppExport SEXP _CspStandSegmentation_p_mat_dist(SEXP matSEXP, SEXP pSEXP, SEXP nthreadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type mat(matSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type p(pSEXP);
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(p_mat_dist(mat, p, nthreads));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_CspStandSegmentation_fast_unlist", (DL_FUNC) &_CspStandSegmentation_fast_unlist, 2},
     {"_CspStandSegmentation_fast_unlist_dist", (DL_FUNC) &_CspStandSegmentation_fast_unlist_dist, 2},
     {"_CspStandSegmentation_eigen_decomposition", (DL_FUNC) &_CspStandSegmentation_eigen_decomposition, 3},
+    {"_CspStandSegmentation_p_mat_dist", (DL_FUNC) &_CspStandSegmentation_p_mat_dist, 3},
     {NULL, NULL, 0}
 };
 

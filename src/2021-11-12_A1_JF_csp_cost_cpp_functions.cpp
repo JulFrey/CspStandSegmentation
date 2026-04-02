@@ -128,3 +128,48 @@ NumericMatrix eigen_decomposition(S4 las, int k, int ncpu = 1)
 
   return out;
 }
+
+//' Point distance function
+//'
+//' calculates euclidean distances for n dimensions between a matrix of points and a single point
+//'
+//' @param mat matrix with points as rows
+//' @param p point to calculate distances
+//' @param nthreads number of threads to use. If 0 or negative, the maximum number of threads available will be used.
+//'
+//' @return the distances between every row of mat and p
+//' @export p_mat_dist
+//'
+//' @examples
+//' p_mat_dist(as.matrix(cbind(runif(100),runif(100))), c(3,4))
+// [[Rcpp::export]]
+Rcpp::NumericVector p_mat_dist(Rcpp::NumericMatrix mat,
+                               Rcpp::NumericVector p,
+                               int nthreads = 0) {
+
+  int n = mat.nrow();
+  int d = mat.ncol();
+
+  if (p.size() != d) {
+    Rcpp::stop("Length of p must match number of columns of mat.");
+  }
+  if (nthreads < 1) {
+    nthreads = omp_get_max_threads();
+  }
+  Rcpp::NumericVector out(n);
+
+  #pragma omp parallel for num_threads(nthreads)
+  for (int i = 0; i < n; i++) {
+
+    double sum_sq = 0.0;
+
+    for (int j = 0; j < d; j++) {
+      double diff = mat(i, j) - p[j];
+      sum_sq += diff * diff;
+    }
+
+    out[i] = std::sqrt(sum_sq);
+  }
+
+  return out;
+}

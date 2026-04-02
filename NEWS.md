@@ -1,3 +1,10 @@
+# CspStandSegmentation 0.2.1
+
+## New Features and Enhancements
+
+### Performance Improvements
+-   Replaced R distance calculation function with a C++ implementation for faster computation in fds
+
 # CspStandSegmentation 0.2.0
 
 ## New Features and Enhancements
