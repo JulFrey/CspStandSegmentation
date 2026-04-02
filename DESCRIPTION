@@ -27,7 +27,9 @@ Imports:
     conicfit,
     rgl,
     RANN,
-    colorspace
+    colorspace,
+    methods,
+    stats
 LinkingTo: 
     Rcpp,
     RcppArmadillo,
