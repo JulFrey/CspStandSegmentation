@@ -90,7 +90,7 @@ get_pal <- function(name = "rainbow") {
 #' # segment trees
 #' segmented <- las |>
 #' CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
-#' las_col <- color_ids(las, col = "sky", instance_id = "PredInstance")
+#' las_col <- CspStandSegmentation::color_ids(segmented, col = "sky", instance_id = "TreeID", ground_color = "#ff0000")
 #' lidR::plot(las_col, color = "RGB")
 #' }
 #' }
@@ -119,14 +119,10 @@ color_ids <- function(
   # check if las has rgb values and warn if they will be overwritten
   if(had_rgb & overwrite_rgb) {
     warning("LAS already has RGB values, they will be overwritten")
+    df <- df[, c("R", "G", "B") := NULL]
   }
 
   df <- las@data
-
-  # strip off any existing RGB columns
-  if(overwrite_rgb) {
-    df <- df[, !names(df) %in% c("R", "G", "B")]
-  }
 
   # assign color palette
   pal_fun <- if (length(col) > 1) colorRampPalette(col) else get_pal(col)
