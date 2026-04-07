@@ -24,3 +24,6 @@ color_ids().
 get_pal("sky")
 
 }
+\author{
+Zoe Schindler
+}

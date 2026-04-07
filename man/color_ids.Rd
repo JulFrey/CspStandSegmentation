@@ -9,7 +9,7 @@ color_ids(
   col = "sky",
   n_col = 10,
   n_neighbors = 10,
-  instance_id = "ID",
+  instance_id = "TreeID",
   ground_id = 0,
   ground_color = "#ffffff",
   overwrite_rgb = TRUE
@@ -28,7 +28,7 @@ Default: 10.}
 adjacency when assigning colours. Default: 10.}
 
 \item{instance_id}{Character. Column name in \code{las@data} that identifies
-instances (for example tree or stand IDs). Default: "ID".}
+instances (for example tree or stand IDs). Default: "TreeID".}
 
 \item{ground_id}{Value used to identify ground or background instance;
 assigned \code{ground_color}. Default: 0.}
@@ -69,9 +69,12 @@ map <- CspStandSegmentation::find_base_coordinates_raster(las)
 # segment trees
 segmented <- las |>
 CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
-las_col <- color_ids(las, col = "sky", instance_id = "PredInstance")
+las_col <- CspStandSegmentation::color_ids(segmented, col = "sky", instance_id = "TreeID", ground_color = "#ff0000")
 lidR::plot(las_col, color = "RGB")
 }
 }
 
+}
+\author{
+Zoe Schindler
 }

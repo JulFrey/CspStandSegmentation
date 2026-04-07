@@ -16,6 +16,8 @@
 #'
 #' @return A function with signature \code{function(n)} that returns \code{n}
 #'   hex colour strings.
+#' 
+#' @author Zoe Schindler
 #'
 #' @examples
 #' get_pal("sky")
@@ -59,7 +61,7 @@ get_pal <- function(name = "rainbow") {
 #' @param n_neighbors Integer. Number of nearest neighbours to treat as
 #'   adjacency when assigning colours. Default: 10.
 #' @param instance_id Character. Column name in \code{las@data} that identifies
-#'   instances (for example tree or stand IDs). Default: "ID".
+#'   instances (for example tree or stand IDs). Default: "TreeID".
 #' @param ground_id Value used to identify ground or background instance;
 #'   assigned \code{ground_color}. Default: 0.
 #' @param ground_color Character. Hex colour used for the ground instance.
@@ -76,6 +78,8 @@ get_pal <- function(name = "rainbow") {
 #' graph, sorts instances by local neighbour density and assigns discrete
 #' colours greedily so neighbouring instances receive maximally different
 #' colours in LAB space.
+#' 
+#' @author Zoe Schindler
 #'
 #' @examples
 #' \dontrun{
@@ -90,7 +94,10 @@ get_pal <- function(name = "rainbow") {
 #' # segment trees
 #' segmented <- las |>
 #' CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
-#' las_col <- CspStandSegmentation::color_ids(segmented, col = "sky", instance_id = "TreeID", ground_color = "#ff0000")
+#' las_col <- CspStandSegmentation::color_ids(segmented, 
+#'   col = "sky", 
+#'   instance_id = "TreeID", 
+#'   ground_color = "#ff0000")
 #' lidR::plot(las_col, color = "RGB")
 #' }
 #' }
@@ -104,7 +111,7 @@ color_ids <- function(
     col = "sky",
     n_col = 10,
     n_neighbors = 10,
-    instance_id = "ID",
+    instance_id = "TreeID",
     ground_id = 0,
     ground_color = "#ffffff",
     overwrite_rgb = TRUE) {

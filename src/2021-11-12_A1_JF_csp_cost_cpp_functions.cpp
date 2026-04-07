@@ -6,6 +6,10 @@
 #include <SpatialIndex.h>
 #include <Rcpp.h>
 
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
+
 using namespace Rcpp;
 using namespace lidR;
 
@@ -95,7 +99,9 @@ NumericMatrix eigen_decomposition(S4 las, int k, int ncpu = 1)
 
   SpatialIndex index(las);
 
-#pragma omp parallel for num_threads(ncpu)
+#ifdef _OPENMP
+  #pragma omp parallel for num_threads(ncpu)
+#endif
   for (unsigned int i = 0 ; i < npoints ; i++)
   {
     arma::mat A(k,3);
@@ -117,7 +123,10 @@ NumericMatrix eigen_decomposition(S4 las, int k, int ncpu = 1)
 
     arma::princomp(coeff, score, latent, A);
 
-#pragma omp critical
+#ifdef _OPENMP
+  #pragma omp critical
+#endif
+
 {
   out(i, 0) = latent[0];
   out(i, 1) = latent[1];
@@ -154,11 +163,17 @@ Rcpp::NumericVector p_mat_dist(Rcpp::NumericMatrix mat,
     Rcpp::stop("Length of p must match number of columns of mat.");
   }
   if (nthreads < 1) {
-    nthreads = omp_get_max_threads();
+    #ifdef _OPENMP
+  nthreads = omp_get_max_threads();
+  #else
+    nthreads = 1;
+  #endif
   }
   Rcpp::NumericVector out(n);
 
-  #pragma omp parallel for num_threads(nthreads)
+  #ifdef _OPENMP
+    #pragma omp parallel for num_threads(nthreads)
+  #endif
   for (int i = 0; i < n; i++) {
 
     double sum_sq = 0.0;
