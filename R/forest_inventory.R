@@ -608,6 +608,10 @@ fi_convex_hull_area <- function(x, y) {
 #' @return List containing the model and device for circle prediction.
 #' @keywords internal
 .get_circle_ctx <- function() {
+    # check if .stemq_cache exists
+    if (!exists(".stemq_cache", envir = .GlobalEnv)) {
+      .stemq_cache <- new.env(parent = emptyenv())
+    }
     if (!is.null(.stemq_cache$ctx)) return(.stemq_cache$ctx)
     ckpt_path <- system.file(
       "R",
@@ -622,7 +626,7 @@ fi_convex_hull_area <- function(x, y) {
     device <- torch::torch_device(
       if (torch::cuda_is_available()) "cuda" else "cpu"
     )
-    obj <- circlecnn_load_checkpoint(
+    obj <- CspStandSegmentation::circlecnn_load_checkpoint(
       ckpt_path,
       device = device,
       use_pretrained = FALSE
@@ -630,7 +634,7 @@ fi_convex_hull_area <- function(x, y) {
     obj$model$eval()
     .stemq_cache$ctx <- list(model = obj$model, device = obj$device)
     .stemq_cache$ctx
-  }
+}
 
 #' Prepare a chip for circle prediction
 #' 
