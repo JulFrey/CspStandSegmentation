@@ -170,8 +170,11 @@ ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.0
 #' @param use_stem_segmentation logical whether to use only points classified as stem for DBH estimation
 #' @param semantic_colname character name of the semantic segmentation column (only needed if use_stem_segmentation is TRUE)
 #' @param stem_semantic_label integer semantic label value for stem points (only needed if use_stem_segmentation is TRUE)
+#' @param stem_quality Logical; if `TRUE`, estimate stem curvature and taper using the CNN-based stem-quality workflow.
 #'
-#' @returns a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
+#' @returns A data.frame with `TreeID`, `X`, `Y`, `Z`, `DBH`, `quality_flag`,
+#'   `Height`, and `ConvexHullArea`. If `stem_quality = TRUE`, the output also
+#'   includes `Curvature` and `Taper`.
 #'
 #' @examples
 #' \donttest{
@@ -294,13 +297,16 @@ forest_inventory <- function(las,
 
   dbh_results <- merge(dbh_results, heights, by = tree_id_col)
   dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
-  dbh_results <- data.frame(apply(dbh_results, 2, unlist))
+
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: START
   if (stem_quality) {  # <<- stem quality inventory trigger check
     stem_quality_inventory_df <- fi_stem_quality_inventory(las, tree_id_col = tree_id_col)
     dbh_results <- merge(dbh_results, stem_quality_inventory_df, by = tree_id_col, all.x = TRUE)
   }
+  message("Stem curvature and taper calculated.")
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: END
+
+  dbh_results <- data.frame(apply(dbh_results, 2, unlist))
   return(dbh_results)
 }
 

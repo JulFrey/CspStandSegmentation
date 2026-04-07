@@ -24,7 +24,11 @@ Imports:
     terra,
     RCSF,
     conicfit,
-    rgl
+    rgl,
+    torch,
+    torchvision,
+    rstudioapi,
+    stats
 LinkingTo: 
     Rcpp,
     RcppArmadillo,

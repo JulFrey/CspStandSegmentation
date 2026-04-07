@@ -44,9 +44,13 @@ forest_inventory(
 \item{semantic_colname}{character name of the semantic segmentation column (only needed if use_stem_segmentation is TRUE)}
 
 \item{stem_semantic_label}{integer semantic label value for stem points (only needed if use_stem_segmentation is TRUE)}
+
+\item{stem_quality}{Logical; if `TRUE`, estimate stem curvature and taper using the CNN-based stem-quality workflow.}
 }
 \value{
-a data.frame with the TreeID, X, Y, DBH, quality_flag, Height and ConvexHullArea
+A data.frame with `TreeID`, `X`, `Y`, `Z`, `DBH`, `quality_flag`,
+  `Height`, and `ConvexHullArea`. If `stem_quality = TRUE`, the output also
+  includes `Curvature` and `Taper`.
 }
 \description{
 This function estimates a taper curve for evry tree and returns the DBH at 1.3m, its position in XY coordinates, the tree height and the trees 2D projection area.
