@@ -259,8 +259,6 @@ forest_inventory <- function(las,
     dbh_slice <- dbh_slice |> CspStandSegmentation::add_geometry(n_cores = n_cores)
   }
 
-  .na2true <- function(x) ifelse(is.na(x) | is.infinite(x),TRUE, x)
-
   #points_per_stem <- aggregate(dbh_slice$TreeID, by = list(dbh_slice$TreeID),FUN = length)
   points_per_stem <- dbh_slice@data[,.N, by = tree_id_col]
 
@@ -269,226 +267,14 @@ forest_inventory <- function(las,
 
   message("Fit a DBH value to every tree.")
 
-  .fit_circle <- function(slice) {
-    # 'slice' is a data.table with columns X, Y, Planarity, Verticality
-
-    if (nrow(slice) < 3) {
-      return(rep(NA_real_, 3))
-    } else if (nrow(slice) < 100 | use_stem_segmentation) {
-      planes <- slice
-    } else {
-      q <- 1 - sqrt(100 / nrow(slice)) + 0.05
-      planes <- slice[
-        Planarity  > quantile(Planarity,  q) &
-          Verticality > quantile(Verticality, q)
-      ]
-    }
-
-    ransac_circle_fit(
-      planes[, .(X, Y)],
-      n_iterations = 500
-    )$circle
-  }
-
-  .fit_circles <- function(tree) {
-    tree[slices,
-         on = .(Z >= z_lo, Z < z_hi),{
-           pars <- .fit_circle(.SD)
-           .(
-             r = pars[3L],
-             X = pars[1L],
-             Y   = pars[2L]
-           )
-         },
-         by = .EACHI,
-         .SDcols = c("X", "Y", "Planarity", "Verticality")]
-  }
-
-  .spline_predict <- function(tree){
-
-    # return position but no dbh if less than 3 points
-    if (nrow(tree) < 3) {
-      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Zref), DBH = NA, quality_flag = 1))
-    }
-
-    # fit circles allong trunk
-    t_seq <- .fit_circles(tree)
-    names(t_seq)[1:2] <- c("Zmin","Zmax")
-
-    # calculate mean dbh height
-    Z <- mean(tree$Zref - tree$Znorm) + 1.3
-
-    # quality control: remove unrealistic large circles
-    t_seq$r[abs(t_seq$r - median(t_seq$r, na.rm = TRUE)) > 2 * sd(t_seq$r, na.rm = TRUE)] <- NA
-
-    # quality control: check if circles do not get way larger allong the trunk
-    for (s in 2:nrow(t_seq)) {
-      if (.na2true(t_seq$r[s] > suppressWarnings(min(t_seq$r[1:(s -1)], na.rm = TRUE) * 1.3)) | .na2true(t_seq$r[s] < 0.04) | all(is.na(t_seq$r[1:s]))) {
-        t_seq[s, c("X", "Y", "r")] <- NA
-      }
-    }
-
-    # if there are too little circles to fit a spline return the mean circle diameter
-    if ((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)) {
-      dbh <- mean(t_seq$r, na.rm = TRUE) * 2
-      if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
-        return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 2))
-      }
-      else {
-        return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = dbh, quality_flag = 2))
-      }
-    }
-
-    # fit a spline for X,Y and DBH each along the Z direction
-    spline_r <- suppressWarnings(with(t_seq[!is.na(t_seq$r),
-    ], smooth.spline(Zmin, r, df = 3)))
-    spline_x <- suppressWarnings(with(t_seq[!is.na(t_seq$X),
-    ], smooth.spline(Zmin, X, df = 20)))
-    spline_y <- suppressWarnings(with(t_seq[!is.na(t_seq$Y),
-    ], smooth.spline(Zmin, Y, df = 20)))
-    # predict DBH X and Y at DBH height
-    r <- as.numeric(predict(spline_r, 1.3+0.5*increment)$y)
-    x <- as.numeric(predict(spline_x, 1.3+0.5*increment)$y)
-    y <- as.numeric(predict(spline_y, 1.3+0.5*increment)$y)
-    dbh <- r * 2
-    if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
-      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
-    } else if (x > (mean(tree$X) + 5) | x < (mean(tree$X) - 5) | y > (mean(tree$Y) + 5) | y < (mean(tree$Y) - 5)) {
-      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, quality_flag = 3))
-    } else {
-      return(c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4))
-    }
-  }
-#//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: START
-  .process_trunk_slices <- function(las) { # <<- input: las of 1 tree with TreeID column
-    # this stem point semantic segmentation function is only borrowed from TreeLS package
-    # and could be replaced with a custom one later... should, rather, its not great
-    las <- TreeLS::stemPoints(las, method = TreeLS::stm.eigen.knn( # <<- Stem points estimated from input las
-      h_step = 0.5,
-      max_curvature = 0.15,
-      max_verticality = 15,
-      voxel_spacing = 0.05,
-      max_d = 0.6,
-      votes_weight = 0.2
-    ))
-    las <- lidR::filter_poi(las, Stem) # <<-Point cloud filtered by stem points
-
-    z_min   <- min(las$Z)
-    z_start <- z_min + 0.5
-    z_end   <- z_start + 10.0
-    step    <- 0.5
-
-    slice_bottoms <- seq(from = z_start, to = z_end - step, by = step) # <<- trunk range
-    results_list <- list()
-    for (i in seq_along(slice_bottoms)) {
-      current_z_bottom <- slice_bottoms[i]
-      current_z_top    <- current_z_bottom + step
-      mask <- las$Z >= current_z_bottom & las$Z < current_z_top # <<- distance from current to last slice center
-      slice_points <- cbind(las$X[mask], las$Y[mask])
-      # /// this entire filtering part, which filters points based on clusters is mainly intended to filter out forked stems:
-      if (!exists("last_center")) {
-        last_center <- c(mean(slice_points[, 1]), mean(slice_points[, 2]))
-      }
-      if (nrow(slice_points) > 5) { # <<-- !!!!!!! FILTERING BASED ON DBSCAN-CLUSTERS /// START
-        db <- dbscan::dbscan(slice_points, eps = 0.2, minPts = 2) # <<- dbscan clusters
-        cluster_ids <- setdiff(unique(db$cluster), 0)
-        valid_clusters <- list() # <<- only clusters within 2m range of previous slice mean are kept
-        if (length(cluster_ids) > 0) {
-          for (cid in cluster_ids) {
-            c_mask <- db$cluster == cid
-            c_pts  <- slice_points[c_mask, , drop=FALSE]
-            c_mean_x <- mean(c_pts[,1])
-            c_mean_y <- mean(c_pts[,2])
-            dist_to_last <- sqrt((c_mean_x - last_center[1])^2 + (c_mean_y - last_center[2])^2)
-            if (dist_to_last <= 1) {
-              valid_clusters[[length(valid_clusters) + 1]] <- list( # <<- potentially several valid clusters
-                id = cid,
-                n_pts = sum(c_mask),
-                pts = c_pts
-              )
-            }
-          }
-        }
-        if (length(valid_clusters) > 0) {
-          counts <- sapply(valid_clusters, function(x) x$n_pts)
-          winner <- valid_clusters[[which.max(counts)]] # <<- 1 cluster with most points wins
-          slice_points <- winner$pts
-        } else {
-          slice_points <- matrix(numeric(0), ncol=2)
-        }
-      } # <<-- !!!!!!! FILTERING BASED ON DBSCAN-CLUSTERS /// END
-      fit_result <- ransac_circle_fit(slice_points) # <<- ransac_circle_fit is applied to remaining cluster of each slice
-      if (is.na(fit_result$circle[3])) {
-        fit_result$circle  <- c(NA_real_, NA_real_, NA_real_)
-        fit_result$inliers <- NA_integer_
-      } else {
-        last_center <- c(fit_result$circle[1], fit_result$circle[2]) # <<- centers of each previous slice
-      }
-      results_list[[i]] <- data.frame(
-        slice_z  = current_z_bottom,
-        center_x = fit_result$circle[1],
-        center_y = fit_result$circle[2],
-        radius   = fit_result$circle[3],
-        inliers  = fit_result$inliers
-      )
-    }
-    rm(last_center)
-    final_table <- do.call(rbind, results_list)
-    return(final_table)
-  }
-
-  .add_stem_metrics <- function(df) { # <<- input: data frame, cols: slice_z center_x center_y     radius inliers curvature_ratio    taper
-    valid <- df[!is.na(df$radius) & df$radius > 0.05, ] # <<- defines valid rows of input table
-    if (nrow(valid) < 3) { # <<- at least 3 valid rows needed
-      df$curvature_ratio <- NA_real_
-      df$taper <- NA_real_
-      return(df)
-    }
-    # /// curvature ratio
-    curv_rat <- tryCatch({
-      sx <- smooth.spline(valid$slice_z, valid$center_x, spar = 0.4)$y
-      sy <- smooth.spline(valid$slice_z, valid$center_y, spar = 0.4)$y
-      sz <- valid$slice_z
-      diffs <- sqrt(diff(sx)^2 + diff(sy)^2 + diff(sz)^2)
-      arc_len <- sum(diffs)
-      chord_len <- sqrt((sx[length(sx)] - sx[1])^2 +
-                          (sy[length(sy)] - sy[1])^2 +
-                          (sz[length(sz)] - sz[1])^2)
-      (arc_len - chord_len) / chord_len
-    }, error = function(e) NA_real_)
-    # /// taper
-    taper_val <- tryCatch({
-      lm_fit <- lm((valid$radius * 2) ~ valid$slice_z)
-      -coef(lm_fit)[2] * 100
-    }, error = function(e) NA_real_)
-    return(list(
-      curvature_ratio = curv_rat * 100, # <<- curvature ratio (cm/m)
-      taper = taper_val # <<- taper (cm/m)
-    ))
-  }
-
-  .stem_quality_inventory <- function(las) {
-    unique_ids <- unique(las$TreeID)
-    output_list <- list()
-    for (id in unique_ids) {
-      tree_las <- las[las$TreeID == id]
-      slices_df <- tryCatch(.process_trunk_slices(tree_las), error = function(e) NULL)
-
-      if (!is.null(slices_df) && nrow(slices_df) > 0) {
-        metrics <- .add_stem_metrics(slices_df)
-        output_list[[as.character(id)]] <- data.frame(
-          TreeID    = id,
-          Curvature = metrics$curvature_ratio,
-          Taper     = metrics$taper
-        )
-      }
-    }
-    final_table <- do.call(rbind, output_list)
-    return(final_table)
-  }
-  #//////////////////////////////////////////////////////////////////////////// STEM QUALITY CONSTRUCTION SITE: END
   dbh_results <- dbh_slice@data[,{
-    pars <- .spline_predict(.SD)
+    pars <- fi_spline_predict(
+      .SD,
+      slices = slices,
+      increment = increment,
+      max_dbh = max_dbh,
+      use_stem_segmentation = use_stem_segmentation
+    )
     .(
       X = pars[1L],
       Y = pars[2L],
@@ -500,28 +286,19 @@ forest_inventory <- function(las,
 
   message("DBH estimated. Calculating tree heights.")
 
-  .Zdif <- function(x) max(x) - min(x)
-  heights <- las@data[,.(Height = .Zdif(Z)), by = tree_id_col]
+  heights <- las@data[,.(Height = fi_zdif(Z)), by = tree_id_col]
   message("Tree heights calculated. Calculating convex hull areas.")
 
-  .convex_hull_area <- function(x, y) {
-    if (length(x) < 3L) return(NA_real_)
-    idx <- chull(x, y)
-    xx  <- x[idx]
-    yy  <- y[idx]
-    0.5 * abs(sum(xx * c(yy[-1], yy[1]) - yy * c(xx[-1], xx[1])))
-  }
-
   dt <- subset(las@data, Znorm > 0.5)
-  cpa <- dt[, .(ConvexHullArea = .convex_hull_area(X, Y)), by = tree_id_col]
+  cpa <- dt[, .(ConvexHullArea = fi_convex_hull_area(X, Y)), by = tree_id_col]
 
   dbh_results <- merge(dbh_results, heights, by = tree_id_col)
   dbh_results <- merge(dbh_results, cpa, by = tree_id_col)
   dbh_results <- data.frame(apply(dbh_results, 2, unlist))
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: START
   if (stem_quality) {  # <<- stem quality inventory trigger check
-    stem_quality_inventory_df <- .stem_quality_inventory(las)
-    dbh_results <- merge(dbh_results, stem_quality_inventory_df, by = "TreeID", all.x = TRUE)
+    stem_quality_inventory_df <- fi_stem_quality_inventory(las, tree_id_col = tree_id_col)
+    dbh_results <- merge(dbh_results, stem_quality_inventory_df, by = tree_id_col, all.x = TRUE)
   }
   #//////////////////////////////////////////////////////////////////////////// STEM QUALITY MERGE: END
   return(dbh_results)
@@ -669,5 +446,404 @@ plot_inventory <- function(plot, inventory, col = NA, cex = 1.5, label_col = "wh
     rgl::texts3d(inventory$X[i] - plot[1] + inventory$DBH[i], inventory$Y[i] - plot[2] + inventory$DBH[i], inventory$Z[i] + 1.3, text = inventory$TreeID[i], adj = c(0.5,0.5), col = label_col, cex = cex, family = "mono", font = 2)
     rgl::lines3d(c(inventory$X[i] - plot[1], inventory$X[i] - plot[1]), c(inventory$Y[i] - plot[2], inventory$Y[i] - plot[2]), c(inventory$Z[i], inventory$Height[i]), col = ifelse(length(col) >= i, col[i], col), lwd = 2)
   }
+}
+
+# ...existing code...
+ransac_circle_fit <- function(data,n_iterations = 1000L,distance_threshold = 0.01,min_inliers = 3L) {
+  # Ensure matrix
+  data <- as.matrix(data)
+  n <- nrow(data)
+
+  # catch if less than 3 points are given
+  if (n < 3L) {
+    return(list(circle      = c(mean(data[, 1]), mean(data[, 2]), NA_real_),
+                inliers     = NA_integer_,
+                angle_segs  = NA_integer_,
+                n_iter      = 0L))
+  }
+
+  # Pre-extract coordinates once
+  x <- data[, 1]
+  y <- data[, 2]
+
+  # Initialize best circle
+  best_circle     <- NULL
+  best_inliers    <- 0L
+  best_angle_segs <- 0L
+
+  # how many points to sample per iteration
+  n_pts_sample <- min(5L, n)
+
+  # point densities for weighted sampling
+  p_densities <- dbscan::pointdensity(data, eps = 0.05)
+
+  for (i in seq_len(n_iterations)) {
+    # Randomly sample points (weighted)
+    idx <- sample.int(n, n_pts_sample, prob = p_densities + 1)
+    sample_points <- data[idx, , drop = FALSE]
+
+    # Fit circle; keep tryCatch very tight and avoid pipe
+    circle <- tryCatch(
+      {
+        CspStandSegmentation::suppress_cat(conicfit::CircleFitByPratt, sample_points)
+      },
+      warning = function(w) NULL,
+      error   = function(e) NULL
+    )
+
+    # If fit failed, skip iteration
+    if (is.null(circle))
+      next
+
+    cx <- circle[1L]
+    cy <- circle[2L]
+    r  <- circle[3L]
+
+    # Vectorised distances: distance from each point to circle
+    # dist_to_center = sqrt((x - cx)^2 + (y - cy)^2)
+    # distance_to_circle = |dist_to_center - r|
+    dx <- x - cx
+    dy <- y - cy
+    dist_to_center <- sqrt(dx*dx + dy*dy)
+    distances <- abs(dist_to_center - r)
+
+    if(any(is.na(c(cx, cy, r, distances)))){ next }
+
+    # Count inliers
+    inlier_mask <- distances < distance_threshold
+    inliers     <- sum(inlier_mask)
+
+    if (inliers < min_inliers){ next }
+
+    # Vectorised angles only for inliers
+    # atan2 in degrees in [0, 360)
+    ang <- atan2(dy[inlier_mask], dx[inlier_mask]) * 180 / pi
+    ang[ang < 0] <- ang[ang < 0] + 360
+
+    # 10-degree bins
+    angle_segs <- length(unique(floor(ang / 10)))
+
+    # Update best circle if it has more angle segments and/or inliers
+    if (angle_segs > best_angle_segs ||
+        (angle_segs == best_angle_segs && inliers >= best_inliers)) {
+      best_circle     <- list(circle     = circle,
+                              inliers    = inliers,
+                              angle_segs = angle_segs,
+                              n_iter     = i)
+      best_angle_segs <- angle_segs
+      best_inliers    <- inliers
+    }
+
+    # optionally early stop: 36 segments is the max for 10° bins
+    if (best_angle_segs >= 30L) {
+      break
+    }
+  }
+
+  # if no valid circle found, fall back to mean center, NA radius
+  if (is.null(best_circle)) {
+    best_circle <- list(circle     = c(mean(x), mean(y), NA_real_),
+                        inliers    = 0L,
+                        angle_segs = 0L,
+                        n_iter     = 0L)
+  }
+
+  best_circle
+}
+
+#' Normalize invalid checks to TRUE
+#'
+#' Treats `NA` and infinite values as `TRUE` to simplify guard conditions.
+#'
+#' @param x A logical or numeric vector.
+#'
+#' @return A logical vector.
+#' @keywords internal
+fi_na2true <- function(x) {
+  ifelse(is.na(x) | is.infinite(x), TRUE, x)
+}
+
+#' Fit one circle from a tree slice
+#'
+#' @param slice A data.table with `X`, `Y`, `Planarity`, and `Verticality`.
+#' @param use_stem_segmentation Logical. If `TRUE`, uses all slice points.
+#'
+#' @return Numeric vector `c(X, Y, r)`.
+#' @keywords internal
+fi_fit_circle <- function(slice, use_stem_segmentation = FALSE) {
+  if (nrow(slice) < 3) {
+    return(rep(NA_real_, 3))
+  } else if (nrow(slice) < 100 | use_stem_segmentation) {
+    planes <- slice
+  } else {
+    q <- 1 - sqrt(100 / nrow(slice)) + 0.05
+    planes <- slice[
+      Planarity > quantile(Planarity, q) &
+        Verticality > quantile(Verticality, q)
+    ]
+  }
+
+  ransac_circle_fit(
+    planes[, .(X, Y)],
+    n_iterations = 500
+  )$circle
+}
+
+#' Fit circles across all stem slices
+#'
+#' @param tree A data.table for one tree.
+#' @param slices A data.table containing `z_lo` and `z_hi` slice bounds.
+#' @param use_stem_segmentation Logical passed to [fi_fit_circle()].
+#'
+#' @return A data.table with fitted `r`, `X`, and `Y` per slice.
+#' @keywords internal
+fi_fit_circles <- function(tree, slices, use_stem_segmentation = FALSE) {
+  tree[slices,
+       on = .(Z >= z_lo, Z < z_hi),{
+         pars <- fi_fit_circle(.SD, use_stem_segmentation = use_stem_segmentation)
+         .(
+           r = pars[3L],
+           X = pars[1L],
+           Y = pars[2L]
+         )
+       },
+       by = .EACHI,
+       .SDcols = c("X", "Y", "Planarity", "Verticality")]
+}
+
+#' Predict DBH and position from stem slices
+#'
+#' @param tree A data.table with tree points and required geometric columns.
+#' @param slices A data.table containing vertical slice definitions.
+#' @param increment Numeric slice increment used for DBH height prediction.
+#' @param max_dbh Numeric maximum accepted DBH.
+#' @param use_stem_segmentation Logical passed to [fi_fit_circles()].
+#'
+#' @return Named numeric vector with `X`, `Y`, `Z`, `DBH`, `quality_flag`.
+#' @keywords internal
+fi_spline_predict <- function(tree,
+                              slices,
+                              increment,
+                              max_dbh,
+                              use_stem_segmentation = FALSE) {
+  if (nrow(tree) < 3) {
+    return(c(X = mean(tree$X), Y = mean(tree$Y), Z = mean(tree$Zref), DBH = NA, quality_flag = 1))
+  }
+
+  t_seq <- fi_fit_circles(tree, slices, use_stem_segmentation = use_stem_segmentation)
+  names(t_seq)[1:2] <- c("Zmin", "Zmax")
+
+  Z <- mean(tree$Zref - tree$Znorm) + 1.3
+
+  t_seq$r[abs(t_seq$r - median(t_seq$r, na.rm = TRUE)) > 2 * sd(t_seq$r, na.rm = TRUE)] <- NA
+
+  for (s in 2:nrow(t_seq)) {
+    if (fi_na2true(t_seq$r[s] > suppressWarnings(min(t_seq$r[1:(s -1)], na.rm = TRUE) * 1.3)) |
+        fi_na2true(t_seq$r[s] < 0.04) |
+        all(is.na(t_seq$r[1:s]))) {
+      t_seq[s, c("X", "Y", "r")] <- NA
+    }
+  }
+
+  if ((sum(!is.na(t_seq$r)) <= 3) | (sum(!is.na(t_seq$X)) <= 3) | (sum(!is.na(t_seq$Y)) <= 3)) {
+    dbh <- mean(t_seq$r, na.rm = TRUE) * 2
+    if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
+      return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 2))
+    }
+    return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = dbh, quality_flag = 2))
+  }
+
+  spline_r <- suppressWarnings(with(t_seq[!is.na(t_seq$r), ], smooth.spline(Zmin, r, df = 3)))
+  spline_x <- suppressWarnings(with(t_seq[!is.na(t_seq$X), ], smooth.spline(Zmin, X, df = 20)))
+  spline_y <- suppressWarnings(with(t_seq[!is.na(t_seq$Y), ], smooth.spline(Zmin, Y, df = 20)))
+
+  r <- as.numeric(predict(spline_r, 1.3+0.5*increment)$y)
+  x <- as.numeric(predict(spline_x, 1.3+0.5*increment)$y)
+  y <- as.numeric(predict(spline_y, 1.3+0.5*increment)$y)
+  dbh <- r * 2
+
+  if (is.na(dbh) | dbh > max_dbh | dbh < 0) {
+    return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, DBH = NA, quality_flag = 3))
+  } else if (x > (mean(tree$X) + 5) | x < (mean(tree$X) - 5) | y > (mean(tree$Y) + 5) | y < (mean(tree$Y) - 5)) {
+    return(c(X = mean(tree$X), Y = mean(tree$Y), Z = Z, quality_flag = 3))
+  }
+
+  c(X = x, Y = y, Z = Z, DBH = dbh, quality_flag = 4)
+}
+
+#' Process trunk slices for stem quality
+#'
+#' @param las A `lidR` LAS object for one tree.
+#'
+#' @return A data.frame with fitted circle parameters per vertical slice.
+#' @keywords internal
+fi_process_trunk_slices <- function(las) {
+  las <- TreeLS::stemPoints(las, method = TreeLS::stm.eigen.knn(
+    h_step = 0.5,
+    max_curvature = 0.15,
+    max_verticality = 15,
+    voxel_spacing = 0.05,
+    max_d = 0.6,
+    votes_weight = 0.2
+  ))
+  las <- lidR::filter_poi(las, Stem)
+
+  z_min <- min(las$Z)
+  z_start <- z_min + 0.5
+  z_end <- z_start + 10.0
+  step <- 0.5
+
+  slice_bottoms <- seq(from = z_start, to = z_end - step, by = step)
+  results_list <- list()
+
+  for (i in seq_along(slice_bottoms)) {
+    current_z_bottom <- slice_bottoms[i]
+    current_z_top <- current_z_bottom + step
+    mask <- las$Z >= current_z_bottom & las$Z < current_z_top
+    slice_points <- cbind(las$X[mask], las$Y[mask])
+
+    if (!exists("last_center")) {
+      last_center <- c(mean(slice_points[, 1]), mean(slice_points[, 2]))
+    }
+
+    if (nrow(slice_points) > 5) {
+      db <- dbscan::dbscan(slice_points, eps = 0.2, minPts = 2)
+      cluster_ids <- setdiff(unique(db$cluster), 0)
+      valid_clusters <- list()
+      if (length(cluster_ids) > 0) {
+        for (cid in cluster_ids) {
+          c_mask <- db$cluster == cid
+          c_pts <- slice_points[c_mask, , drop = FALSE]
+          c_mean_x <- mean(c_pts[,1])
+          c_mean_y <- mean(c_pts[,2])
+          dist_to_last <- sqrt((c_mean_x - last_center[1])^2 + (c_mean_y - last_center[2])^2)
+          if (dist_to_last <= 1) {
+            valid_clusters[[length(valid_clusters) + 1]] <- list(
+              id = cid,
+              n_pts = sum(c_mask),
+              pts = c_pts
+            )
+          }
+        }
+      }
+      if (length(valid_clusters) > 0) {
+        counts <- sapply(valid_clusters, function(x) x$n_pts)
+        winner <- valid_clusters[[which.max(counts)]]
+        slice_points <- winner$pts
+      } else {
+        slice_points <- matrix(numeric(0), ncol=2)
+      }
+    }
+
+    fit_result <- ransac_circle_fit(slice_points)
+    if (is.na(fit_result$circle[3])) {
+      fit_result$circle <- c(NA_real_, NA_real_, NA_real_)
+      fit_result$inliers <- NA_integer_
+    } else {
+      last_center <- c(fit_result$circle[1], fit_result$circle[2])
+    }
+    results_list[[i]] <- data.frame(
+      slice_z = current_z_bottom,
+      center_x = fit_result$circle[1],
+      center_y = fit_result$circle[2],
+      radius = fit_result$circle[3],
+      inliers = fit_result$inliers
+    )
+  }
+
+  if (exists("last_center")) {
+    rm(last_center)
+  }
+  do.call(rbind, results_list)
+}
+
+#' Compute stem quality metrics
+#'
+#' @param df A data.frame with columns `slice_z`, `center_x`, `center_y`, and `radius`.
+#'
+#' @return A list with `curvature_ratio` and `taper`.
+#' @keywords internal
+fi_add_stem_metrics <- function(df) {
+  valid <- df[!is.na(df$radius) & df$radius > 0.05, ]
+  if (nrow(valid) < 3) {
+    return(list(curvature_ratio = NA_real_, taper = NA_real_))
+  }
+
+  curv_rat <- tryCatch({
+    sx <- smooth.spline(valid$slice_z, valid$center_x, spar = 0.4)$y
+    sy <- smooth.spline(valid$slice_z, valid$center_y, spar = 0.4)$y
+    sz <- valid$slice_z
+    diffs <- sqrt(diff(sx)^2 + diff(sy)^2 + diff(sz)^2)
+    arc_len <- sum(diffs)
+    chord_len <- sqrt((sx[length(sx)] - sx[1])^2 +
+                        (sy[length(sy)] - sy[1])^2 +
+                        (sz[length(sz)] - sz[1])^2)
+    (arc_len - chord_len) / chord_len
+  }, error = function(e) NA_real_)
+
+  taper_val <- tryCatch({
+    lm_fit <- lm((valid$radius * 2) ~ valid$slice_z)
+    -coef(lm_fit)[2] * 100
+  }, error = function(e) NA_real_)
+
+  list(
+    curvature_ratio = curv_rat * 100,
+    taper = taper_val
+  )
+}
+
+#' Build a stem quality inventory
+#'
+#' @param las A `lidR` LAS object containing segmented trees.
+#' @param tree_id_col Character column name containing tree ids.
+#'
+#' @return A data.frame with tree id, curvature, and taper.
+#' @keywords internal
+fi_stem_quality_inventory <- function(las, tree_id_col = "TreeID") {
+  unique_ids <- unique(las@data[[tree_id_col]])
+  output_list <- list()
+
+  for (id in unique_ids) {
+    tree_las <- lidR::filter_poi(las, get(tree_id_col) == id)
+    slices_df <- tryCatch(fi_process_trunk_slices(tree_las), error = function(e) NULL)
+
+    if (!is.null(slices_df) && nrow(slices_df) > 0) {
+      metrics <- fi_add_stem_metrics(slices_df)
+      tree_row <- data.frame(
+        id = id,
+        Curvature = metrics$curvature_ratio,
+        Taper = metrics$taper
+      )
+      names(tree_row)[1] <- tree_id_col
+      output_list[[as.character(id)]] <- tree_row
+    }
+  }
+
+  do.call(rbind, output_list)
+}
+
+#' Compute height span
+#'
+#' @param x Numeric vector.
+#'
+#' @return Numeric span `max(x) - min(x)`.
+#' @keywords internal
+fi_zdif <- function(x) {
+  max(x) - min(x)
+}
+
+#' Compute convex hull area
+#'
+#' @param x Numeric vector of x coordinates.
+#' @param y Numeric vector of y coordinates.
+#'
+#' @return Numeric area of the convex hull polygon.
+#' @keywords internal
+fi_convex_hull_area <- function(x, y) {
+  if (length(x) < 3L) return(NA_real_)
+  idx <- chull(x, y)
+  xx <- x[idx]
+  yy <- y[idx]
+  0.5 * abs(sum(xx * c(yy[-1], yy[1]) - yy * c(xx[-1], xx[1])))
 }
 

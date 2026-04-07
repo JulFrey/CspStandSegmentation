@@ -16,7 +16,8 @@ forest_inventory(
   non_tree_id = 0,
   use_stem_segmentation = FALSE,
   semantic_colname = NULL,
-  stem_semantic_label = NULL
+  stem_semantic_label = NULL,
+  stem_quality = FALSE
 )
 }
 \arguments{
