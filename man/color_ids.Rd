@@ -69,7 +69,10 @@ map <- CspStandSegmentation::find_base_coordinates_raster(las)
 # segment trees
 segmented <- las |>
 CspStandSegmentation::csp_cost_segmentation(map, 1, S_w = 0.5)
-las_col <- CspStandSegmentation::color_ids(segmented, col = "sky", instance_id = "TreeID", ground_color = "#ff0000")
+las_col <- CspStandSegmentation::color_ids(segmented, 
+  col = "sky", 
+  instance_id = "TreeID", 
+  ground_color = "#ff0000")
 lidR::plot(las_col, color = "RGB")
 }
 }
