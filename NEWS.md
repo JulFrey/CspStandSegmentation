@@ -1,3 +1,5 @@
+# CspStandSegmentation 0.3.0
+
 # CspStandSegmentation 0.2.1
 
 ## New Features and Enhancements
