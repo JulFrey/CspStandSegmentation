@@ -9,4 +9,5 @@
 ^LICENSE\.txt$
 ^\.dockerignore$
 ^Dockerfile$
+^\.posit$
 

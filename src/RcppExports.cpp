@@ -61,12 +61,28 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// multi_source_dijkstra
+Rcpp::List multi_source_dijkstra(IntegerVector from, IntegerVector to, NumericVector weight, int n_vertices, IntegerVector seeds);
+RcppExport SEXP _CspStandSegmentation_multi_source_dijkstra(SEXP fromSEXP, SEXP toSEXP, SEXP weightSEXP, SEXP n_verticesSEXP, SEXP seedsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< IntegerVector >::type from(fromSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type to(toSEXP);
+    Rcpp::traits::input_parameter< NumericVector >::type weight(weightSEXP);
+    Rcpp::traits::input_parameter< int >::type n_vertices(n_verticesSEXP);
+    Rcpp::traits::input_parameter< IntegerVector >::type seeds(seedsSEXP);
+    rcpp_result_gen = Rcpp::wrap(multi_source_dijkstra(from, to, weight, n_vertices, seeds));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_CspStandSegmentation_fast_unlist", (DL_FUNC) &_CspStandSegmentation_fast_unlist, 2},
     {"_CspStandSegmentation_fast_unlist_dist", (DL_FUNC) &_CspStandSegmentation_fast_unlist_dist, 2},
     {"_CspStandSegmentation_eigen_decomposition", (DL_FUNC) &_CspStandSegmentation_eigen_decomposition, 3},
     {"_CspStandSegmentation_p_mat_dist", (DL_FUNC) &_CspStandSegmentation_p_mat_dist, 3},
+    {"_CspStandSegmentation_multi_source_dijkstra", (DL_FUNC) &_CspStandSegmentation_multi_source_dijkstra, 5},
     {NULL, NULL, 0}
 };
 

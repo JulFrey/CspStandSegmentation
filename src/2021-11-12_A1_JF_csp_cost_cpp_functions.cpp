@@ -5,6 +5,9 @@
 #include <RcppArmadillo.h>
 #include <SpatialIndex.h>
 #include <Rcpp.h>
+#include <queue>
+#include <utility>
+#include <vector>
 
 #ifdef _OPENMP
   #include <omp.h>
@@ -187,4 +190,111 @@ Rcpp::NumericVector p_mat_dist(Rcpp::NumericMatrix mat,
   }
 
   return out;
+}
+
+//' Multi-source Dijkstra shortest paths
+//'
+//' Computes shortest-path distances from several source vertices simultaneously
+//' on an undirected graph with finite, non-negative edge weights. Each vertex
+//' is assigned to the source with the smallest path cost. Ties are resolved in
+//' favour of the earliest source in `seeds`. Unreachable vertices have an
+//' infinite distance and `NA` source index.
+//'
+//' @param from Integer vector of one-based origin vertex indices.
+//' @param to Integer vector of one-based destination vertex indices. Must have
+//'   the same length as `from`.
+//' @param weight Numeric vector of finite, non-negative edge weights. Must have
+//'   the same length as `from` and `to`.
+//' @param n_vertices Total number of vertices, including isolated vertices.
+//' @param seeds Integer vector of one-based source vertex indices. The returned
+//'   `seed_index` refers to positions in this vector rather than vertex IDs.
+//'
+//' @return A list with `distance`, a numeric vector of shortest-path costs, and
+//'   `seed_index`, an integer vector identifying the closest source for each
+//'   vertex.
+//'
+//' @details The graph is treated as undirected: every input edge is available in
+//' both directions. The algorithm has time complexity
+//' \eqn{O((V + E) \log V)} and stores one distance and source label per vertex.
+//' It is therefore suitable for nearest-source assignment without materializing
+//' a source-by-vertex distance matrix.
+//'
+//' @export
+// [[Rcpp::export]]
+Rcpp::List multi_source_dijkstra(IntegerVector from,
+                                 IntegerVector to,
+                                 NumericVector weight,
+                                 int n_vertices,
+                                 IntegerVector seeds) {
+  if (from.size() != to.size() || from.size() != weight.size()) {
+    stop("from, to, and weight must have the same length.");
+  }
+  if (n_vertices < 1) {
+    stop("n_vertices must be positive.");
+  }
+
+  std::vector<std::vector<std::pair<int, double>>> adjacency(n_vertices);
+  for (R_xlen_t edge = 0; edge < from.size(); ++edge) {
+    const int u = from[edge] - 1;
+    const int v = to[edge] - 1;
+    const double w = weight[edge];
+    if (u < 0 || u >= n_vertices || v < 0 || v >= n_vertices) {
+      stop("Edge endpoints must be between 1 and n_vertices.");
+    }
+    if (!R_finite(w) || w < 0.0) {
+      stop("Edge weights must be finite and non-negative.");
+    }
+    adjacency[u].push_back(std::make_pair(v, w));
+    adjacency[v].push_back(std::make_pair(u, w));
+  }
+
+  typedef std::pair<double, int> DistanceLabel;
+  typedef std::pair<DistanceLabel, int> QueueEntry;
+  std::priority_queue<QueueEntry,
+                      std::vector<QueueEntry>,
+                      std::greater<QueueEntry>> queue;
+  std::vector<double> distance(n_vertices, R_PosInf);
+  std::vector<int> label(n_vertices, NA_INTEGER);
+
+  for (R_xlen_t seed_index = 0; seed_index < seeds.size(); ++seed_index) {
+    const int vertex = seeds[seed_index] - 1;
+    if (vertex < 0 || vertex >= n_vertices) {
+      stop("Seeds must be between 1 and n_vertices.");
+    }
+    const int candidate_label = seed_index + 1;
+    if (distance[vertex] > 0.0 ||
+        (distance[vertex] == 0.0 &&
+         (label[vertex] == NA_INTEGER || candidate_label < label[vertex]))) {
+      distance[vertex] = 0.0;
+      label[vertex] = candidate_label;
+      queue.push(std::make_pair(std::make_pair(0.0, candidate_label), vertex));
+    }
+  }
+
+  while (!queue.empty()) {
+    const QueueEntry current = queue.top();
+    queue.pop();
+    const double current_distance = current.first.first;
+    const int current_label = current.first.second;
+    const int vertex = current.second;
+    if (current_distance != distance[vertex] || current_label != label[vertex]) {
+      continue;
+    }
+    for (const auto& neighbor : adjacency[vertex]) {
+      const int next_vertex = neighbor.first;
+      const double candidate_distance = current_distance + neighbor.second;
+      if (candidate_distance < distance[next_vertex] ||
+          (candidate_distance == distance[next_vertex] &&
+           (label[next_vertex] == NA_INTEGER || current_label < label[next_vertex]))) {
+        distance[next_vertex] = candidate_distance;
+        label[next_vertex] = current_label;
+        queue.push(std::make_pair(std::make_pair(candidate_distance, current_label), next_vertex));
+      }
+    }
+  }
+
+  return List::create(
+    _["distance"] = wrap(distance),
+    _["seed_index"] = wrap(label)
+  );
 }
