@@ -281,27 +281,23 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   # and weigh matrix by DBH^2/3 (Tao et al 2015.)
   #-----------------------
 
-  # build graph
-  vox_graph <- igraph::graph_from_data_frame(
-    adjacency_df[, c("adjacency_list_id", "adjacency_list", "weight")],
-    directed = FALSE,
-    vertices = data.frame(name = as.character(seq_len(nrow(vox@data))))
-  ) |>
+  # Build from positional vertex IDs, retaining isolated voxels and seed vertices.
+  n_vertices <- nrow(vox@data)
+  edge_endpoints <- as.matrix(adjacency_df[, c("adjacency_list_id", "adjacency_list")])
+  if (any(!is.finite(edge_endpoints)) || any(edge_endpoints < 1) || any(edge_endpoints > n_vertices) ||
+      any(edge_endpoints != floor(edge_endpoints))) {
+    stop("Graph edge endpoints must be integer vertex IDs between 1 and the number of voxels and seeds.")
+  }
+  vox_graph <- igraph::make_empty_graph(n = n_vertices, directed = FALSE) |>
+    igraph::add_edges(
+      edges = as.integer(t(edge_endpoints)),
+      attr = list(weight = adjacency_df$weight)
+    ) |>
     igraph::simplify(edge.attr.comb = list(weight = "min"))
 
   if (N_trees == 1) {
     edge_vertices <- igraph::ends(vox_graph, igraph::E(vox_graph), names = FALSE)
-    seed_vertices <- match(as.character(seeds$SeedID), igraph::V(vox_graph)$name)
-    reachable_seeds <- !is.na(seed_vertices)
-
-    if (!all(reachable_seeds)) {
-      warning("Some base positions are absent from the graph and cannot be used as seeds.", call. = FALSE)
-      seeds <- seeds[reachable_seeds, , drop = FALSE]
-      seed_vertices <- seed_vertices[reachable_seeds]
-    }
-    if (length(seed_vertices) == 0) {
-      stop("None of the seed positions are present in the graph.")
-    }
+    seed_vertices <- seeds$SeedID
 
     routing <- multi_source_dijkstra(
       from = edge_vertices[, 1],
@@ -349,7 +345,7 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
     min_dist_matrix <- data.table::as.data.table(min_dist_matrix)
     colnames(tree_id_matrix) <- paste0("TreeID", c("", 2:ncol(tree_id_matrix)))
     colnames(min_dist_matrix) <- paste0("dist", c("", 2:ncol(min_dist_matrix)))
-    min_matrix <- cbind(PointID = as.integer(igraph::V(vox_graph)$name), tree_id_matrix, min_dist_matrix) |>
+    min_matrix <- cbind(PointID = seq_len(igraph::vcount(vox_graph)), tree_id_matrix, min_dist_matrix) |>
       data.table::as.data.table()
     for (i in 1:N_trees) {
       tree_column <- paste0("TreeID", ifelse(i == 1, "", i))
