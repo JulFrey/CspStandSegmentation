@@ -63,6 +63,34 @@ p_mat_dist <- function(mat, p, nthreads = 0L) {
     .Call(`_CspStandSegmentation_p_mat_dist`, mat, p, nthreads)
 }
 
+#' Multi-source Dijkstra shortest paths
+#'
+#' Computes shortest-path distances from several source vertices simultaneously
+#' on an undirected graph with finite, non-negative edge weights. Each vertex
+#' is assigned to the source with the smallest path cost. Ties are resolved in
+#' favour of the earliest source in `seeds`. Unreachable vertices have an
+#' infinite distance and `NA` source index.
+#'
+#' @param from Integer vector of one-based origin vertex indices.
+#' @param to Integer vector of one-based destination vertex indices. Must have
+#'   the same length as `from`.
+#' @param weight Numeric vector of finite, non-negative edge weights. Must have
+#'   the same length as `from` and `to`.
+#' @param n_vertices Total number of vertices, including isolated vertices.
+#' @param seeds Integer vector of one-based source vertex indices. The returned
+#'   `seed_index` refers to positions in this vector rather than vertex IDs.
+#'
+#' @return A list with `distance`, a numeric vector of shortest-path costs, and
+#'   `seed_index`, an integer vector identifying the closest source for each
+#'   vertex.
+#'
+#' @details The graph is treated as undirected: every input edge is available in
+#' both directions. The algorithm has time complexity
+#' \eqn{O((V + E) \log V)} and stores one distance and source label per vertex.
+#' It is therefore suitable for nearest-source assignment without materializing
+#' a source-by-vertex distance matrix.
+#'
+#' @export
 multi_source_dijkstra <- function(from, to, weight, n_vertices, seeds) {
     .Call(`_CspStandSegmentation_multi_source_dijkstra`, from, to, weight, n_vertices, seeds)
 }
