@@ -276,7 +276,7 @@ forest_inventory <- function(las,
     } else if (nrow(slice) < 100 | use_stem_segmentation) {
       planes <- slice
     } else {
-      q <- 1 - sqrt(100 / nrow(slice)) + 0.05
+      q <- min(0.99, 1 - sqrt(100 / nrow(slice)) + 0.05)
       planes <- slice[
         Planarity  > quantile(Planarity,  q) &
           Verticality > quantile(Verticality, q)
