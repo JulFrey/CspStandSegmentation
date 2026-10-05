@@ -1,5 +1,9 @@
 # CspStandSegmentation 0.3.0
 
+## New Features and Enhancements
+- graph building logic changed to ignore distance from seeds to voxels in 2m distance for segmentation
+- performance improvements as long as only one seed should be conected
+
 # CspStandSegmentation 0.2.1
 
 ## New Features and Enhancements
