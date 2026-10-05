@@ -63,3 +63,7 @@ p_mat_dist <- function(mat, p, nthreads = 0L) {
     .Call(`_CspStandSegmentation_p_mat_dist`, mat, p, nthreads)
 }
 
+multi_source_dijkstra <- function(from, to, weight, n_vertices, seeds) {
+    .Call(`_CspStandSegmentation_multi_source_dijkstra`, from, to, weight, n_vertices, seeds)
+}
+

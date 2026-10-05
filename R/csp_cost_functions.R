@@ -243,13 +243,38 @@ add_las_attributes <- function(las) {
 #'
 #' @export comparative_shortest_path
 comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, seeds, v_w = 0, l_w = 0, s_w = 0, N_cores = parallel::detectCores() - 1, Voxel_size, N_trees = 1) {
+  required_columns <- c("adjacency_list_id", "adjacency_list", "weight")
+  if (!all(required_columns %in% names(adjacency_df))) {
+    stop("adjacency_df must contain adjacency_list_id, adjacency_list, and weight.")
+  }
+  if (!is.numeric(Voxel_size) || length(Voxel_size) != 1 || !is.finite(Voxel_size) || Voxel_size <= 0) {
+    stop("Voxel_size must be one finite number greater than 0.")
+  }
+  if (!is.numeric(N_trees) || length(N_trees) != 1 || N_trees < 1 || N_trees != as.integer(N_trees)) {
+    stop("N_trees must be a positive integer.")
+  }
+  if (N_trees > nrow(seeds)) {
+    stop("N_trees cannot exceed the number of seeds.")
+  }
 
-  # update weights
-  adjacency_df$weight <- with(vox@data[adjacency_df$adjacency_list], adjacency_df$weight^2 + ((1 - Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
-  adjacency_df$weight[adjacency_df$weight < 0] <- 0.00001 * Voxel_size # catch negative weights
+  is_seed_link <- "seed_link" %in% names(adjacency_df) & adjacency_df$seed_link
+  adjacency_df$seed_link <- is_seed_link
+  routing_edges <- !is_seed_link
+  destination_features <- vox@data[adjacency_df$adjacency_list[routing_edges], ]
+  if (!all(is.finite(adjacency_df$weight[routing_edges])) ||
+      !all(is.finite(destination_features$Verticality)) ||
+      !all(is.finite(destination_features$Sphericity)) ||
+      !all(is.finite(destination_features$Linearity))) {
+    stop("Graph distances and geometric features must be finite.")
+  }
 
-  # set distances to seeds 0
-  adjacency_df$weight[adjacency_df$adjacency_list_id %in% seeds$SeedID] <- 0
+  # Squared distances and feature penalties must remain non-negative for Dijkstra.
+  adjacency_df$weight[routing_edges] <- with(
+    destination_features,
+    pmax(0, adjacency_df$weight[routing_edges]^2 +
+      ((1 - Verticality) * v_w + Sphericity * s_w + Linearity * l_w) * Voxel_size)
+  )
+  adjacency_df$weight[is_seed_link] <- 0
 
   #-----------------------
   # compute dijkstra matrix for each seed (trunk)
@@ -257,74 +282,86 @@ comparative_shortest_path <- function(vox = vox, adjacency_df = adjacency_df, se
   #-----------------------
 
   # build graph
-  vox_graph <- adjacency_df |>
-    igraph::graph_from_data_frame(directed = FALSE) |>
-    igraph::simplify()
+  vox_graph <- igraph::graph_from_data_frame(
+    adjacency_df[, c("adjacency_list_id", "adjacency_list", "weight")],
+    directed = FALSE,
+    vertices = data.frame(name = as.character(seq_len(nrow(vox@data))))
+  ) |>
+    igraph::simplify(edge.attr.comb = list(weight = "min"))
 
-  # calculate a distance (weight) graph per seed using Dijkstra
-  doParallel::registerDoParallel(cores = N_cores)
-  dists_list <- foreach::foreach(
-    t = 1:nrow(seeds),
-    .noexport = c('las', 'map', 'vox', 'tree_seeds', 'ground', 'dtm', 'adjacency_df', 'inv'),
-    .errorhandling = c('pass')) %dopar% {
-      return(igraph::distances(vox_graph, as.character(seeds$SeedID[t]), algorithm = 'dijkstra'))
+  if (N_trees == 1) {
+    edge_vertices <- igraph::ends(vox_graph, igraph::E(vox_graph), names = FALSE)
+    seed_vertices <- match(as.character(seeds$SeedID), igraph::V(vox_graph)$name)
+    reachable_seeds <- !is.na(seed_vertices)
+
+    if (!all(reachable_seeds)) {
+      warning("Some base positions are absent from the graph and cannot be used as seeds.", call. = FALSE)
+      seeds <- seeds[reachable_seeds, , drop = FALSE]
+      seed_vertices <- seed_vertices[reachable_seeds]
     }
-  doParallel::stopImplicitCluster()
-
-  unreachable <- which(sapply(dists_list,function(x) is.character(x[[1]])))
-  if(length(unreachable) > 0) {
-    warning('Not all base positions could be reached by the graph. Try a lower resolution or a different approach to find tree base positions. Error messages for the unreachable TreeIDs:')
-    warning(paste0(unreachable , paste(":",paste(dists_list[unreachable]), collapse = " "), "\n"), call. = FALSE)
-    seeds <- seeds[-unreachable,]
-    dists_list <- dists_list[-unreachable]
+    if (length(seed_vertices) == 0) {
+      stop("None of the seed positions are present in the graph.")
     }
 
-  # Combine to matrix
-  dist_matrix <- simplify2array(dists_list)[1,,]
-
-  #helper function to get the indices of the n smalest values
-  .which_n_min <- function(x, n){
-    return(order(x)[1:n])
-  }
-  .n_min <- function(x, n, na.val = 9999){
-    m <- x[order(x)[1:n]]
-    m[is.na(m)] <- na.val
-    return(m)
-  }
-
-  # get seed with minimum distance
-  #min_matrix_old <- apply(dist_matrix, 1, which.min)
-  min_matrix <- t(apply(dist_matrix, 1, .which_n_min, n = N_trees))
-  #min_dist_matrix_old <- apply(dist_matrix, 1, min, na.rm = TRUE)
-  min_dist_matrix <- t(apply(dist_matrix, 1, .n_min, n = N_trees))
-
-  tree_id_matrix <- apply(min_matrix,2,function(x) seeds$TreeID[as.integer(x)] )
-  tree_id_matrix <- data.table::as.data.table(tree_id_matrix)
-  min_dist_matrix <- data.table::as.data.table(min_dist_matrix)
-
-  if(N_trees == 1){
-    tree_id_matrix <- tree_id_matrix
-    min_dist_matrix <- t(min_dist_matrix)
-    colnames(tree_id_matrix) <- "TreeID"
-    colnames(min_dist_matrix) <- "dist"
+    routing <- multi_source_dijkstra(
+      from = edge_vertices[, 1],
+      to = edge_vertices[, 2],
+      weight = igraph::E(vox_graph)$weight,
+      n_vertices = igraph::vcount(vox_graph),
+      seeds = seed_vertices
+    )
+    tree_id <- seeds$TreeID[routing$seed_index]
+    tree_id[is.infinite(routing$distance)] <- 0
+    min_matrix <- data.table::data.table(
+      PointID = seq_len(igraph::vcount(vox_graph)),
+      TreeID = tree_id,
+      dist = routing$distance
+    )
   } else {
-    colnames(tree_id_matrix) <- paste0("TreeID", c("",2:ncol(tree_id_matrix)))
-    colnames(min_dist_matrix) <- paste0("dist", c("",2:ncol(min_dist_matrix)))
-  }
+    # Calculate a distance graph per seed when multiple nearest trees are requested.
+    doParallel::registerDoParallel(cores = N_cores)
+    dists_list <- foreach::foreach(
+      t = 1:nrow(seeds),
+      .noexport = c('las', 'map', 'vox', 'tree_seeds', 'ground', 'dtm', 'adjacency_df', 'inv'),
+      .errorhandling = c('pass')) %dopar% {
+        igraph::distances(vox_graph, as.character(seeds$SeedID[t]), algorithm = 'dijkstra')
+      }
+    doParallel::stopImplicitCluster()
 
+    unreachable <- which(sapply(dists_list, function(x) is.character(x[[1]])))
+    if (length(unreachable) > 0) {
+      warning('Not all base positions could be reached by the graph. Try a lower resolution or a different approach to find tree base positions. Error messages for the unreachable TreeIDs:')
+      warning(paste0(unreachable, paste(":", paste(dists_list[unreachable]), collapse = " "), "\n"), call. = FALSE)
+      seeds <- seeds[-unreachable, ]
+      dists_list <- dists_list[-unreachable]
+    }
 
-  #min_matrix <- data.table::data.table(PointID = as.integer(igraph::V(vox_graph)$name), TreeID = seeds$TreeID[as.integer(min_matrix)], dist = min_dist_matrix)
-  #min_matrix$TreeID[min_dist_matrix == Inf] <- 0 # set SeedIDs 0 for voxels which any seed can't reach
-  min_matrix <- cbind(PointID = as.integer(igraph::V(vox_graph)$name), tree_id_matrix, min_dist_matrix) |> data.table::as.data.table()
-  # replace all TreeIDs where dist is Inf with 0
-  for(i in 1:N_trees){
-    min_matrix[[paste0("TreeID", ifelse(i == 1, "", i))]][min_matrix[[paste0("dist", ifelse(i == 1, "", i))]] == Inf] <- 0
+    dist_matrix <- simplify2array(dists_list)[1, , ]
+    .which_n_min <- function(x, n) order(x)[1:n]
+    .n_min <- function(x, n, na.val = 9999) {
+      m <- x[order(x)[1:n]]
+      m[is.na(m)] <- na.val
+      m
+    }
+    min_seed_index <- t(apply(dist_matrix, 1, .which_n_min, n = N_trees))
+    min_dist_matrix <- t(apply(dist_matrix, 1, .n_min, n = N_trees))
+    tree_id_matrix <- data.table::as.data.table(apply(min_seed_index, 2, function(x) seeds$TreeID[as.integer(x)]))
+    min_dist_matrix <- data.table::as.data.table(min_dist_matrix)
+    colnames(tree_id_matrix) <- paste0("TreeID", c("", 2:ncol(tree_id_matrix)))
+    colnames(min_dist_matrix) <- paste0("dist", c("", 2:ncol(min_dist_matrix)))
+    min_matrix <- cbind(PointID = as.integer(igraph::V(vox_graph)$name), tree_id_matrix, min_dist_matrix) |>
+      data.table::as.data.table()
+    for (i in 1:N_trees) {
+      tree_column <- paste0("TreeID", ifelse(i == 1, "", i))
+      distance_column <- paste0("dist", ifelse(i == 1, "", i))
+      min_matrix[[tree_column]][min_matrix[[distance_column]] == Inf] <- 0
+    }
   }
 
   # assign voxels to seeds (minimum cost/distance to trunk)
   vox <- vox |>
-    lidR::remove_lasattribute('TreeID') |>
-    lidR::add_attribute(as.integer(rownames(vox@data)), 'PointID')
+    lidR::remove_lasattribute('TreeID')
+  vox@data$PointID <- seq_len(nrow(vox@data))
   vox@data <- merge(vox@data, min_matrix, by = 'PointID')
   return(vox)
 }
@@ -416,7 +453,8 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   if (!(is.data.frame(map) & all(c('X', 'Y', 'Z', 'TreeID') %in% names(map)))) {
     stop('map has to be a data.frame with collumn names X,Y,Z,TreeID.')
   }
-  if(!all(is.numeric(c(Voxel_size, V_w, L_w, S_w, N_cores)))) {
+  if (!all(is.numeric(c(Voxel_size, V_w, L_w, S_w, N_cores))) ||
+      !all(is.finite(c(Voxel_size, V_w, L_w, S_w, N_cores)))) {
     stop('Voxel_size, V_w, L_w, S_w and N_cores have to be numeric.')
   }
 
@@ -429,6 +467,12 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   if(nrow(map) == 0) {
     stop('No tree positions in the map.')
   }
+  if (!all(is.finite(as.matrix(map[, c("X", "Y", "Z")])))) {
+    stop("map coordinates must be finite.")
+  }
+  if (!is.numeric(N_trees) || length(N_trees) != 1 || N_trees < 1 || N_trees != as.integer(N_trees) || N_trees > nrow(map)) {
+    stop("N_trees must be a positive integer no greater than the number of map positions.")
+  }
 
   # check if TreeID already exists
   if ('TreeID' %in% names(las@data)) {
@@ -439,6 +483,9 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   # Check if geometric features exist in las and compute dummies if not
   if(!all(c('Sphericity', 'Linearity', 'Verticality') %in% names(las@data))) {
     warning("no geometric features in las.  V_w, L_w and/or S_w weights will be ignored.Use 'las <- las |> add_gemetry()' prior to calling this function.")
+    V_w <- 0
+    L_w <- 0
+    S_w <- 0
     las <- las |>
       lidR::add_lasattribute(0, 'Sphericity', 'Sphericity') |>
       lidR::add_lasattribute(0, 'Linearity', 'Linearity') |>
@@ -475,9 +522,10 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   tree_seeds <- data.frame(SeedID = seed_range, TreeID = vox@data$TreeID[seed_range])
   rm(seed_range)
 
-  # Use dbscan to calculate a matrix of neighboring points
-  neighborhood_list <- dbscan::frNN(vox@data[,c('X_gr', 'Y_gr', 'Z_gr')], Voxel_size * 2, bucketSize = 22)
-  # dbscan::frNN(vox@data[,c('X_gr', 'Y_gr', 'Z_gr')], Voxel_size * 2, bucketSize = 22)  # voxel size * 1.42 (sqrt(1^2 + 1^2)) 1.73
+  n_voxels <- nrow(vox@data) - nrow(inv)
+
+  # Use dbscan to calculate voxel-to-voxel neighbourhood edges only.
+  neighborhood_list <- dbscan::frNN(vox@data[seq_len(n_voxels), c('X_gr', 'Y_gr', 'Z_gr')], Voxel_size * 2, bucketSize = 22)
 
   # The result has to be disentangled we get the adjacent voxel IDs first
   adjacency_list <- unlist(neighborhood_list$id)
@@ -488,12 +536,38 @@ csp_cost_segmentation <- function(las, map, Voxel_size = 0.3, V_w = 0, L_w = 0, 
   # We do the same with the distances
   dists_vec <- fast_unlist_dist(neighborhood_list$dist, length(adjacency_list))
 
-  # Compile to a data frame
-  adjacency_df <- data.frame(adjacency_list_id,adjacency_list, weight = dists_vec) #, TreeID = vox@data$TreeID[adjacency_list_id]
+  # Compile voxel-to-voxel edges.
+  adjacency_df <- data.frame(
+    adjacency_list_id = adjacency_list_id,
+    adjacency_list = adjacency_list,
+    weight = dists_vec,
+    seed_link = FALSE
+  )
   rm(adjacency_list, adjacency_list_id, dists_vec, neighborhood_list)
+
+  # Link each tree centre to up to four observed voxels within 2 m at zero cost.
+  nearest_voxels <- RANN::nn2(
+    data = as.matrix(vox@data[seq_len(n_voxels), c("X_gr", "Y_gr", "Z_gr")]),
+    query = as.matrix(inv[, c("X_gr", "Y_gr", "Z_gr")]),
+    k = min(4L, n_voxels),
+    searchtype = "radius",
+    radius = 2
+  )
+  seed_links <- data.frame(
+    adjacency_list_id = rep(tree_seeds$SeedID, each = ncol(nearest_voxels$nn.idx)),
+    adjacency_list = as.vector(t(nearest_voxels$nn.idx)),
+    weight = 0,
+    seed_link = TRUE
+  )
+  seed_links <- seed_links[seed_links$adjacency_list > 0, , drop = FALSE]
+  if (length(unique(seed_links$adjacency_list_id)) < nrow(tree_seeds)) {
+    warning("Some seed positions have no observed voxel within 2 m and will not segment any voxels.", call. = FALSE)
+  }
+  adjacency_df <- rbind(adjacency_df, seed_links)
 
   # Calculate CSP, including the weights
   vox2 <- comparative_shortest_path(vox = vox, adjacency_df = adjacency_df, v_w = V_w, l_w = L_w, s_w = S_w, Voxel_size = Voxel_size, N_cores = N_cores, seeds = tree_seeds, N_trees = N_trees)
+  vox2@data <- vox2@data[vox2@data$PointID <= n_voxels, ]
 
   las <- las |>
     add_voxel_coordinates(Voxel_size)
